@@ -90,6 +90,12 @@ def test_checkpoint_is_highest_message_id_saved_per_chat(recorder, checkpoints):
     assert checkpoints.last_message_id(UNRELATED_CHAT) is None
 
 
+def test_checkpoint_moves_past_messages_read_but_not_saved(recorder, checkpoints):
+    recorder.record_new_posts(WATCHED_CHAT, [TEXT_POST], HOUR_1, read_through=104)
+    recorder.record_new_posts(WATCHED_CHAT, [], HOUR_2, read_through=107)
+    assert checkpoints.last_message_id(WATCHED_CHAT) == 107
+
+
 def test_page_with_post_from_other_chat_stores_nothing(db_path, recorder, checkpoints):
     with pytest.raises(PostFromOtherChatError):
         recorder.record_new_posts(WATCHED_CHAT, [TEXT_POST, UNRELATED_POST], HOUR_1)

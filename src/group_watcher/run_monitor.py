@@ -3,12 +3,27 @@ from contextlib import AbstractContextManager
 from datetime import timedelta
 
 from group_watcher.alerts import AlertKind, Alerts
+from group_watcher.client import HaltReason
 from group_watcher.config import WatchedChat
 from group_watcher.poll_run import RunOutcome, RunReport
 from group_watcher.storage.chat_poll_repository import ChatPollRepository
 from group_watcher.storage.run_log_repository import RunLogRepository
 
 STALE_AFTER = timedelta(hours=24)
+
+HALT_NOTICES = {
+    HaltReason.SESSION_ENDED: (
+        "Telegram watcher halted: the session ended. Log in again, then clear the halt."
+    ),
+    HaltReason.ACCOUNT_DEACTIVATED: (
+        "Telegram watcher halted: the account is deactivated or banned."
+        " Logging in again will not help."
+    ),
+    HaltReason.AUTHORIZATION_REFUSED: (
+        "Telegram watcher halted: authorization was refused."
+        " Review the reason in the log before clearing the halt."
+    ),
+}
 
 
 class RunMonitor:
@@ -39,8 +54,17 @@ class RunMonitor:
                 self._chat_polls.start_watching(chat.chat_id, report.started_at)
             for chat in report.polled_chats:
                 self._chat_polls.record_success(chat.chat_id, report.finished_at)
+        self._alert_on_halt(report)
         self._alert_on_chats(report)
         self._alert_on_failure(report)
+
+    def _alert_on_halt(self, report: RunReport) -> None:
+        if report.halt_reason is None:
+            self._alerts.resolve_all(AlertKind.HALTED)
+            return
+        self._alerts.raise_alert(
+            AlertKind.HALTED, report.halt_reason, HALT_NOTICES[report.halt_reason]
+        )
 
     def _alert_on_chats(self, report: RunReport) -> None:
         for chat in report.polled_chats:
