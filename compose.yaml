@@ -1,0 +1,16 @@
+services:
+  watcher:
+    build: .
+    image: group-watcher
+    user: "${HOST_UID:?run through make}:${HOST_GID:?run through make}"
+    volumes:
+      - .:/app
+      - type: bind
+        source: ${XDG_RUNTIME_DIR:?}/bus
+        target: /run/host-session-bus
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp:exec
+    environment:
+      DBUS_SESSION_BUS_ADDRESS: unix:path=/run/host-session-bus
