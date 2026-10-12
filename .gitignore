@@ -1,0 +1,12 @@
+/var/
+
+# Telethon writes a bare-named session to the working directory, outside /var/.
+*.session
+*.session-journal
+.env
+
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
