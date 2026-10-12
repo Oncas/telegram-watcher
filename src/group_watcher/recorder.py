@@ -32,6 +32,10 @@ class PostRecorder:
                     chat_id, max(post.message_id for post in posts)
                 )
 
+    def record_starting_point(self, chat_id: int, message_id: int) -> None:
+        with self._transaction:
+            self._checkpoints.advance(chat_id, message_id)
+
     def record_recheck(
         self,
         chat_id: int,

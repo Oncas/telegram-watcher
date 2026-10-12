@@ -1,9 +1,10 @@
-import sqlite3
 from contextlib import closing
 from dataclasses import replace
 from datetime import timedelta
 
 import pytest
+from builders import make_recorder
+from events import read_events
 from samples import (
     ALBUM_POSTS,
     CAPTION_POST,
@@ -17,24 +18,14 @@ from samples import (
 )
 
 from group_watcher.allowlist import PostFromOtherChatError
-from group_watcher.recorder import PostRecorder
 from group_watcher.storage.checkpoint_repository import CheckpointRepository
 from group_watcher.storage.database import open_database
-from group_watcher.storage.post_repository import PostRepository
 
 HOUR_1 = T0 + timedelta(hours=1)
 HOUR_2 = T0 + timedelta(hours=2)
 HOUR_3 = T0 + timedelta(hours=3)
 
 UNSTORABLE_POST = replace(PHOTO_POST, message_id=2**63)
-
-
-def make_recorder(connection):
-    return PostRecorder(
-        transaction=connection,
-        post_repository=PostRepository(connection),
-        checkpoint_repository=CheckpointRepository(connection),
-    )
 
 
 @pytest.fixture
@@ -45,14 +36,6 @@ def recorder(connection):
 @pytest.fixture
 def checkpoints(connection):
     return CheckpointRepository(connection)
-
-
-def read_events(db_path, *columns):
-    with closing(sqlite3.connect(db_path)) as connection:
-        return connection.execute(
-            f"SELECT {', '.join(columns)} FROM events"
-            " ORDER BY fetched_at, chat_id, message_id, kind"
-        ).fetchall()
 
 
 def test_new_post_event_records_post_metadata(db_path, recorder):
