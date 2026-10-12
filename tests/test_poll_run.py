@@ -71,7 +71,7 @@ def run_once(db_path, telegram, notifier, clock):
 
 
 def test_run_saves_new_posts_from_every_configured_chat(db_path, run_once):
-    assert run_once() == RunOutcome.COMPLETED
+    assert run_once().outcome == RunOutcome.COMPLETED
     assert read_events(db_path, "kind", "chat_id", "message_id") == [
         ("new", SECOND_CHAT, 101),
         ("new", WATCHED_CHAT, 101),
@@ -83,20 +83,20 @@ def test_run_requests_only_configured_chats(telegram, run_once):
     assert set(telegram.requested_chat_ids) == {WATCHED_CHAT, SECOND_CHAT}
 
 
-def test_unavailable_chat_does_not_stop_the_others(
-    db_path, telegram, notifier, run_once
-):
+def test_unavailable_chat_does_not_stop_the_others(db_path, telegram, run_once):
     telegram.chat_failures[WATCHED_CHAT] = ChatUnavailable()
-    assert run_once() == RunOutcome.COMPLETED
+    report = run_once()
+    assert report.outcome == RunOutcome.COMPLETED
+    assert report.polled_chats == (SECOND_CHANNEL,)
+    assert report.unavailable_chats == (WATCHED_CHANNEL,)
     assert read_events(db_path, "chat_id") == [(SECOND_CHAT,)]
-    assert notifier.messages == ["Telegram watcher could not poll Synthetic channel."]
 
 
 def test_network_failure_while_connecting_ends_run_without_notifying(
     telegram, notifier, run_once
 ):
     telegram.connect_failure = NetworkUnavailable()
-    assert run_once() == RunOutcome.NETWORK_UNAVAILABLE
+    assert run_once().outcome == RunOutcome.NETWORK_UNAVAILABLE
     assert notifier.messages == []
 
 
@@ -104,7 +104,7 @@ def test_network_failure_mid_run_skips_remaining_chats(
     db_path, telegram, notifier, run_once
 ):
     telegram.chat_failures[WATCHED_CHAT] = NetworkUnavailable()
-    assert run_once() == RunOutcome.NETWORK_UNAVAILABLE
+    assert run_once().outcome == RunOutcome.NETWORK_UNAVAILABLE
     assert telegram.requested_chat_ids == [WATCHED_CHAT]
     assert read_events(db_path, "kind") == []
     assert notifier.messages == []
@@ -112,7 +112,7 @@ def test_network_failure_mid_run_skips_remaining_chats(
 
 def test_rate_limit_ends_run_without_trying_other_chats(telegram, run_once):
     telegram.chat_failures[WATCHED_CHAT] = RateLimited(timedelta(hours=2))
-    assert run_once() == RunOutcome.RATE_LIMITED
+    assert run_once().outcome == RunOutcome.RATE_LIMITED
     assert telegram.requested_chat_ids == [WATCHED_CHAT]
 
 
@@ -121,10 +121,10 @@ def test_rate_limit_deadline_holds_across_runs(telegram, clock, run_once):
     run_once()
     del telegram.chat_failures[WATCHED_CHAT]
     clock.now = HOUR_3 - timedelta(seconds=1)
-    assert run_once() == RunOutcome.RATE_LIMITED
+    assert run_once().outcome == RunOutcome.RATE_LIMITED
     assert telegram.connections == 1
     clock.now = HOUR_3
-    assert run_once() == RunOutcome.COMPLETED
+    assert run_once().outcome == RunOutcome.COMPLETED
     assert telegram.connections == 2
 
 
@@ -158,10 +158,10 @@ def test_authorization_failure_halts_every_later_run(
     telegram, notifier, clock, run_once, reason, message
 ):
     telegram.connect_failure = AuthorizationFailed(reason)
-    assert run_once() == RunOutcome.HALTED
+    assert run_once().outcome == RunOutcome.HALTED
     telegram.connect_failure = None
     clock.now = HOUR_1 + timedelta(days=30)
-    assert run_once() == RunOutcome.HALTED
+    assert run_once().outcome == RunOutcome.HALTED
     assert telegram.connections == 0
     assert notifier.messages == [message]
 
@@ -171,6 +171,6 @@ def test_unexpected_error_ends_run_and_logs_no_message_content(
 ):
     caplog.set_level(logging.INFO)
     telegram.chat_failures[WATCHED_CHAT] = RuntimeError(TEXT_POST.text)
-    assert run_once() == RunOutcome.FAILED
+    assert run_once().outcome == RunOutcome.FAILED
     assert "RuntimeError" in caplog.text
     assert TEXT_POST.text not in caplog.text

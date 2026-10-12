@@ -35,6 +35,25 @@ CREATE TABLE account_state (
 
 INSERT INTO account_state (singleton) VALUES (1);
 
+CREATE TABLE runs (
+    started_at TEXT NOT NULL,
+    finished_at TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    error_type TEXT
+) STRICT;
+
+CREATE TABLE chat_polls (
+    chat_id INTEGER PRIMARY KEY,
+    watched_since TEXT NOT NULL,
+    last_success_at TEXT
+) STRICT;
+
+CREATE TABLE active_alerts (
+    kind TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    PRIMARY KEY (kind, subject)
+) STRICT;
+
 CREATE VIEW events AS
 SELECT
     CASE WHEN version = 1 THEN 'new' ELSE 'edited' END AS kind,
