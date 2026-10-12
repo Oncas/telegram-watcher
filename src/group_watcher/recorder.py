@@ -21,16 +21,22 @@ class PostRecorder:
         self._checkpoints = checkpoint_repository
 
     def record_new_posts(
-        self, chat_id: int, posts: Sequence[Post], fetched_at: datetime
+        self,
+        chat_id: int,
+        posts: Sequence[Post],
+        fetched_at: datetime,
+        *,
+        read_through: int | None = None,
     ) -> None:
         reject_posts_from_other_chats(chat_id, posts)
+        read_ids = [post.message_id for post in posts]
+        if read_through is not None:
+            read_ids.append(read_through)
         with self._transaction:
             for post in posts:
                 self._posts.save(post, fetched_at)
-            if posts:
-                self._checkpoints.advance(
-                    chat_id, max(post.message_id for post in posts)
-                )
+            if read_ids:
+                self._checkpoints.advance(chat_id, max(read_ids))
 
     def record_starting_point(self, chat_id: int, message_id: int) -> None:
         with self._transaction:

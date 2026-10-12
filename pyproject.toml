@@ -3,7 +3,12 @@ name = "group-watcher"
 version = "0.1.0"
 description = "Polls selected Telegram groups and channels and keeps a local record of their posts."
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "telethon>=1.40,<2",
+]
+
+[project.scripts]
+group-watcher = "group_watcher.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]

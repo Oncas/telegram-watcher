@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
 from typing import Protocol
@@ -33,12 +34,17 @@ class AuthorizationFailed(Exception):
         self.reason = reason
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Page:
+    posts: Sequence[Post]
+    last_message_id: int | None
+    reached_end: bool
+
+
 class ChatClient(Protocol):
     def latest_message_id(self, chat: WatchedChat) -> int | None: ...
 
-    def fetch_after(
-        self, chat: WatchedChat, message_id: int, limit: int
-    ) -> Sequence[Post]: ...
+    def fetch_after(self, chat: WatchedChat, message_id: int, limit: int) -> Page: ...
 
     def fetch_by_ids(
         self, chat: WatchedChat, message_ids: Sequence[int]

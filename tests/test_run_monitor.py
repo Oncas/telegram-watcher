@@ -7,8 +7,14 @@ from builders import run_hourly
 from fakes import FakeClock, FakeNotifier, FakeTelegram
 from samples import SECOND_CHANNEL, T0, WATCHED_CHANNEL, WATCHED_CHAT
 
-from group_watcher.client import AuthorizationFailed, ChatUnavailable, HaltReason
-from group_watcher.poll_run import HALT_NOTICES
+from group_watcher.client import (
+    AuthorizationFailed,
+    ChatUnavailable,
+    HaltReason,
+    NetworkUnavailable,
+)
+from group_watcher.storage.account_state_repository import AccountStateRepository
+from group_watcher.storage.database import open_database
 
 CHATS = (WATCHED_CHANNEL, SECOND_CHANNEL)
 
@@ -16,6 +22,9 @@ HOUR_1 = T0 + timedelta(hours=1)
 
 UNAVAILABLE = "Telegram watcher could not poll Synthetic channel."
 STALE = "Telegram watcher has not polled Synthetic channel for over 24 hours."
+SESSION_ENDED_NOTICE = (
+    "Telegram watcher halted: the session ended. Log in again, then clear the halt."
+)
 
 
 def hours_later(hours):
@@ -84,6 +93,12 @@ def test_each_run_is_logged_with_its_times_and_outcome(
     ]
 
 
+def test_network_failure_notifies_nothing(telegram, notifier, run_once):
+    telegram.connect_failure = NetworkUnavailable()
+    run_once()
+    assert notifier.messages == []
+
+
 def test_unavailable_chat_notifies_once_while_it_stays_unavailable(
     telegram, notifier, clock, run_once
 ):
@@ -114,12 +129,73 @@ def test_chat_without_successful_poll_for_over_a_day_notifies_once(
     assert notifier.messages == [UNAVAILABLE, STALE]
 
 
-def test_halted_runs_raise_no_stale_alerts(telegram, notifier, clock, run_once):
-    telegram.connect_failure = AuthorizationFailed(HaltReason.SESSION_ENDED)
+@pytest.mark.parametrize(
+    ("reason", "message"),
+    [
+        (HaltReason.SESSION_ENDED, SESSION_ENDED_NOTICE),
+        (
+            HaltReason.ACCOUNT_DEACTIVATED,
+            (
+                "Telegram watcher halted: the account is deactivated or banned."
+                " Logging in again will not help."
+            ),
+        ),
+        (
+            HaltReason.AUTHORIZATION_REFUSED,
+            (
+                "Telegram watcher halted: authorization was refused."
+                " Review the reason in the log before clearing the halt."
+            ),
+        ),
+    ],
+)
+def test_halt_notifies_once_and_raises_no_stale_alerts(
+    telegram, notifier, clock, run_once, reason, message
+):
+    telegram.connect_failure = AuthorizationFailed(reason)
     run_once()
+    telegram.connect_failure = None
     clock.now = hours_later(24 * 30)
     run_once()
-    assert notifier.messages == [HALT_NOTICES[HaltReason.SESSION_ENDED]]
+    assert notifier.messages == [message]
+
+
+def test_new_halt_after_clearing_notifies_again(
+    db_path, telegram, notifier, clock, run_once
+):
+    telegram.connect_failure = AuthorizationFailed(HaltReason.SESSION_ENDED)
+    run_once()
+    with closing(open_database(db_path)) as connection, connection:
+        AccountStateRepository(connection).clear_halt()
+    telegram.connect_failure = None
+    clock.now = hours_later(1)
+    run_once()
+    telegram.connect_failure = AuthorizationFailed(HaltReason.SESSION_ENDED)
+    clock.now = hours_later(2)
+    run_once()
+    assert notifier.messages == [SESSION_ENDED_NOTICE, SESSION_ENDED_NOTICE]
+
+
+def test_undelivered_halt_notice_is_sent_on_a_later_run(
+    telegram, notifier, clock, run_once
+):
+    telegram.connect_failure = AuthorizationFailed(HaltReason.SESSION_ENDED)
+    notifier.available = False
+    run_once()
+    notifier.available = True
+    clock.now = hours_later(1)
+    run_once()
+    assert notifier.messages == [SESSION_ENDED_NOTICE]
+
+
+def test_undelivered_alert_is_sent_on_a_later_run(telegram, notifier, clock, run_once):
+    telegram.chat_failures[WATCHED_CHAT] = ChatUnavailable()
+    notifier.available = False
+    run_once()
+    notifier.available = True
+    clock.now = hours_later(1)
+    run_once()
+    assert notifier.messages == [UNAVAILABLE]
 
 
 def test_alerts_repeat_only_after_the_chat_recovers(

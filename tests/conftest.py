@@ -1,4 +1,5 @@
 import pytest
+from fakes import FakeNotifySend
 
 from group_watcher.storage.database import create_database, open_database
 
@@ -15,3 +16,10 @@ def connection(db_path):
     connection = open_database(db_path)
     yield connection
     connection.close()
+
+
+@pytest.fixture
+def notify_send(tmp_path_factory, monkeypatch):
+    directory = tmp_path_factory.mktemp("bin")
+    monkeypatch.setenv("PATH", str(directory))
+    return FakeNotifySend(directory)

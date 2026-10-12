@@ -88,6 +88,21 @@ def test_short_page_ends_fetching_without_another_request(connection, clock):
     assert telegram.fetched_after_ids == [0, 102]
 
 
+def test_service_messages_move_the_checkpoint_without_being_saved(
+    db_path, connection, clock
+):
+    poller = make_chat_poller(connection, clock, page_size=2, max_pages=1)
+    telegram = FakeTelegram()
+    with telegram.connect() as client:
+        poller.poll(client, WATCHED_CHANNEL)
+        telegram.publish_service_messages(WATCHED_CHAT, 101, 102)
+        telegram.publish(PHOTO_POST)
+        poller.poll(client, WATCHED_CHANNEL)
+        poller.poll(client, WATCHED_CHANNEL)
+    assert telegram.fetched_after_ids == [0, 102]
+    assert read_events(db_path, "kind", "message_id") == [("new", 103)]
+
+
 def test_recheck_records_edits_and_deletions(db_path, connection, clock, poller):
     make_recorder(connection).record_new_posts(
         WATCHED_CHAT, [TEXT_POST, PHOTO_POST], HOUR_1

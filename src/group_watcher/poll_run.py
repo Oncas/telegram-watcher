@@ -15,24 +15,9 @@ from group_watcher.client import (
     RateLimited,
 )
 from group_watcher.config import WatchedChat
-from group_watcher.notifier import Notifier
 from group_watcher.storage.account_state_repository import AccountStateRepository
 
 logger = logging.getLogger(__name__)
-
-HALT_NOTICES = {
-    HaltReason.SESSION_ENDED: (
-        "Telegram watcher halted: the session ended. Log in again, then clear the halt."
-    ),
-    HaltReason.ACCOUNT_DEACTIVATED: (
-        "Telegram watcher halted: the account is deactivated or banned."
-        " Logging in again will not help."
-    ),
-    HaltReason.AUTHORIZATION_REFUSED: (
-        "Telegram watcher halted: authorization was refused."
-        " Review the reason in the log before clearing the halt."
-    ),
-}
 
 
 class RunOutcome(StrEnum):
@@ -49,6 +34,7 @@ class RunReport:
     finished_at: datetime
     outcome: RunOutcome
     error_type: str | None = None
+    halt_reason: HaltReason | None = None
     polled_chats: tuple[WatchedChat, ...] = ()
     unavailable_chats: tuple[WatchedChat, ...] = ()
 
@@ -62,7 +48,6 @@ class PollRun:
         chat_poller: ChatPoller,
         transaction: AbstractContextManager,
         account_state_repository: AccountStateRepository,
-        notifier: Notifier,
         clock: Callable[[], datetime],
     ):
         self._chats = chats
@@ -70,7 +55,6 @@ class PollRun:
         self._chat_poller = chat_poller
         self._transaction = transaction
         self._account_state = account_state_repository
-        self._notifier = notifier
         self._clock = clock
 
     def run(self) -> RunReport:
@@ -83,6 +67,7 @@ class PollRun:
             finished_at=self._clock(),
             outcome=outcome,
             error_type=error_type,
+            halt_reason=self._account_state.halt_reason(),
             polled_chats=tuple(polled_chats),
             unavailable_chats=tuple(unavailable_chats),
         )
@@ -111,7 +96,6 @@ class PollRun:
             with self._transaction:
                 self._account_state.halt(error.reason)
             logger.error("run halted: %s", error.reason)
-            self._notifier.notify(HALT_NOTICES[error.reason])
             return RunOutcome.HALTED, None
         except Exception as error:  # noqa: BLE001
             error_type = type(error).__name__
