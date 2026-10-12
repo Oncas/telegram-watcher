@@ -16,6 +16,7 @@ class FakeTelegram:
         self.connections = 0
         self.requested_chat_ids: list[int] = []
         self.rechecked_message_ids: list[list[int]] = []
+        self.fetched_after_ids: list[int] = []
 
     def publish(self, *posts: Post) -> None:
         for post in posts:
@@ -38,6 +39,7 @@ class FakeTelegram:
     def fetch_after(
         self, chat: WatchedChat, message_id: int, limit: int
     ) -> Sequence[Post]:
+        self.fetched_after_ids.append(message_id)
         newer = [post for post in self._request(chat) if post.message_id > message_id]
         return newer[:limit]
 
