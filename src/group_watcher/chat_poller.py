@@ -52,8 +52,13 @@ class ChatPoller:
     ) -> None:
         for _ in range(self._max_pages):
             page = client.fetch_after(chat, after_message_id, self._page_size)
-            if page:
-                self._recorder.record_new_posts(chat.chat_id, page, self._clock())
-                after_message_id = max(post.message_id for post in page)
-            if len(page) < self._page_size:
+            if page.last_message_id is not None:
+                self._recorder.record_new_posts(
+                    chat.chat_id,
+                    page.posts,
+                    self._clock(),
+                    read_through=page.last_message_id,
+                )
+                after_message_id = page.last_message_id
+            if page.reached_end:
                 return

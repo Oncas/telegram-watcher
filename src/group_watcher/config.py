@@ -1,8 +1,11 @@
+import json
 import tomllib
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
 from group_watcher.chat_ids import is_channel_id, is_marked_group_or_channel_id
+from group_watcher.private_files import write_private_file
 
 CONFIG_KEYS = {"chats"}
 CHAT_KEYS = {"name", "chat_id", "access_hash"}
@@ -40,6 +43,23 @@ def load_config(path: Path) -> Config:
     )
     _reject_duplicate_chat_ids(chats)
     return Config(chats=chats)
+
+
+def save_config(path: Path, config: Config) -> None:
+    tables = ["\n".join(_chat_table(chat)) for chat in config.chats]
+    write_private_file(path, "\n\n".join(tables) + "\n")
+
+
+def _chat_table(chat: WatchedChat) -> Iterator[str]:
+    yield "[[chats]]"
+    yield f"name = {_toml_string(chat.name)}"
+    yield f"chat_id = {chat.chat_id}"
+    if chat.access_hash is not None:
+        yield f"access_hash = {chat.access_hash}"
+
+
+def _toml_string(text: str) -> str:
+    return json.dumps(text, ensure_ascii=False).replace("\x7f", "\\u007f")
 
 
 def _read_toml(path: Path) -> dict:

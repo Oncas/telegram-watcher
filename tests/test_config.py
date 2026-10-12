@@ -1,6 +1,14 @@
+import stat
+
 import pytest
 
-from group_watcher.config import Config, ConfigError, WatchedChat, load_config
+from group_watcher.config import (
+    Config,
+    ConfigError,
+    WatchedChat,
+    load_config,
+    save_config,
+)
 
 VALID_CONFIG = """
 [[chats]]
@@ -152,3 +160,20 @@ def test_rejects_missing_file(tmp_path):
 def test_rejects_invalid_config(write_config, text):
     with pytest.raises(ConfigError):
         load_config(write_config(text))
+
+
+def test_saved_config_loads_back_unchanged(tmp_path):
+    config = Config(
+        chats=(
+            WatchedChat(
+                name='Quote " backslash \\ tab \t delete \x7f emoji \U0001f600',
+                chat_id=-1000000000001,
+                access_hash=-1234567890,
+            ),
+            WatchedChat(name="Synthetic basic group", chat_id=-42, access_hash=None),
+        )
+    )
+    path = tmp_path / "config.toml"
+    save_config(path, config)
+    assert load_config(path) == config
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600

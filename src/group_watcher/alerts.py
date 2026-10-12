@@ -1,14 +1,18 @@
+import logging
 from contextlib import AbstractContextManager
 from enum import StrEnum
 
-from group_watcher.notifier import Notifier
+from group_watcher.notifier import NotificationFailed, Notifier
 from group_watcher.storage.alert_repository import AlertRepository
+
+logger = logging.getLogger(__name__)
 
 
 class AlertKind(StrEnum):
     CHAT_UNAVAILABLE = "chat_unavailable"
     CHAT_STALE = "chat_stale"
     RUN_FAILED = "run_failed"
+    HALTED = "halted"
 
 
 class Alerts:
@@ -26,7 +30,11 @@ class Alerts:
     def raise_alert(self, kind: AlertKind, subject: str, message: str) -> None:
         if self._alerts.is_active(kind, subject):
             return
-        self._notifier.notify(message)
+        try:
+            self._notifier.notify(message)
+        except NotificationFailed:
+            logger.warning("notification not delivered, retrying next run: %s", kind)
+            return
         with self._transaction:
             self._alerts.activate(kind, subject)
 

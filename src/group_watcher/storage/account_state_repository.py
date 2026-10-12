@@ -18,6 +18,9 @@ class AccountStateRepository:
     def halt(self, reason: HaltReason) -> None:
         self._connection.execute("UPDATE account_state SET halt_reason = ?", (reason,))
 
+    def clear_halt(self) -> None:
+        self._connection.execute("UPDATE account_state SET halt_reason = NULL")
+
     def retry_at(self) -> datetime | None:
         (retry_at,) = self._connection.execute(
             "SELECT retry_at FROM account_state"
