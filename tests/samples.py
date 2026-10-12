@@ -1,10 +1,19 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
+from group_watcher.config import WatchedChat
 from group_watcher.posts import MediaKind, Post
 
 WATCHED_CHAT = -1000000000001
 UNRELATED_CHAT = -1000000000002
+SECOND_CHAT = -1000000000003
+
+WATCHED_CHANNEL = WatchedChat(
+    name="Synthetic channel", chat_id=WATCHED_CHAT, access_hash=1111
+)
+SECOND_CHANNEL = WatchedChat(
+    name="Second synthetic channel", chat_id=SECOND_CHAT, access_hash=2222
+)
 
 T0 = datetime(2026, 1, 5, 9, 0, tzinfo=UTC)
 
@@ -52,4 +61,10 @@ UNRELATED_POST = replace(
     TEXT_POST,
     chat_id=UNRELATED_CHAT,
     text="Synthetic unrelated post",
+)
+
+SECOND_CHAT_POST = replace(
+    TEXT_POST,
+    chat_id=SECOND_CHAT,
+    text="Synthetic post in the second channel",
 )

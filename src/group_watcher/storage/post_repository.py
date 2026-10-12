@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from datetime import datetime
 
 from group_watcher.posts import Post
+from group_watcher.storage.timestamps import format_timestamp
 
 
 class PostRepository:
@@ -13,7 +14,12 @@ class PostRepository:
         self._connection.execute(
             "INSERT INTO posts (chat_id, message_id, posted_at, album_id)"
             " VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
-            (post.chat_id, post.message_id, _iso(post.posted_at), post.album_id),
+            (
+                post.chat_id,
+                post.message_id,
+                format_timestamp(post.posted_at),
+                post.album_id,
+            ),
         )
         latest = self._connection.execute(
             "SELECT version, edited_at FROM post_versions"
@@ -24,8 +30,17 @@ class PostRepository:
             self._add_version(post, 1, fetched_at)
             return
         latest_version, latest_edited_at = latest
-        if latest_edited_at != _iso(post.edited_at):
+        if latest_edited_at != format_timestamp(post.edited_at):
             self._add_version(post, latest_version + 1, fetched_at)
+
+    def recent_message_ids(self, chat_id: int, posted_since: datetime) -> list[int]:
+        rows = self._connection.execute(
+            "SELECT message_id FROM posts"
+            " WHERE chat_id = ? AND posted_at >= ? AND deleted_at IS NULL"
+            " ORDER BY message_id",
+            (chat_id, format_timestamp(posted_since)),
+        )
+        return [message_id for (message_id,) in rows]
 
     def mark_deleted(
         self, chat_id: int, message_ids: Iterable[int], noticed_at: datetime
@@ -33,7 +48,10 @@ class PostRepository:
         self._connection.executemany(
             "UPDATE posts SET deleted_at = ?"
             " WHERE chat_id = ? AND message_id = ? AND deleted_at IS NULL",
-            [(_iso(noticed_at), chat_id, message_id) for message_id in message_ids],
+            [
+                (format_timestamp(noticed_at), chat_id, message_id)
+                for message_id in message_ids
+            ],
         )
 
     def _add_version(self, post: Post, version: int, fetched_at: datetime) -> None:
@@ -45,12 +63,8 @@ class PostRepository:
                 post.chat_id,
                 post.message_id,
                 version,
-                _iso(post.edited_at),
+                format_timestamp(post.edited_at),
                 post.media_kind,
-                _iso(fetched_at),
+                format_timestamp(fetched_at),
             ),
         )
-
-
-def _iso(value: datetime | None) -> str | None:
-    return value.isoformat(timespec="seconds") if value is not None else None

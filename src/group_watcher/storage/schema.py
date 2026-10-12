@@ -27,6 +27,14 @@ CREATE TABLE checkpoints (
     last_message_id INTEGER NOT NULL
 ) STRICT;
 
+CREATE TABLE account_state (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    halt_reason TEXT,
+    retry_at TEXT
+) STRICT;
+
+INSERT INTO account_state (singleton) VALUES (1);
+
 CREATE VIEW events AS
 SELECT
     CASE WHEN version = 1 THEN 'new' ELSE 'edited' END AS kind,
