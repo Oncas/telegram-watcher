@@ -1,9 +1,9 @@
 import logging
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Protocol
 
 from group_watcher.chat_poller import ChatPoller
 from group_watcher.client import (
@@ -15,6 +15,7 @@ from group_watcher.client import (
     RateLimited,
 )
 from group_watcher.config import WatchedChat
+from group_watcher.notifier import Notifier
 from group_watcher.storage.account_state_repository import AccountStateRepository
 
 logger = logging.getLogger(__name__)
@@ -42,8 +43,14 @@ class RunOutcome(StrEnum):
     FAILED = "failed"
 
 
-class Notifier(Protocol):
-    def notify(self, message: str) -> None: ...
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RunReport:
+    started_at: datetime
+    finished_at: datetime
+    outcome: RunOutcome
+    error_type: str | None = None
+    polled_chats: tuple[WatchedChat, ...] = ()
+    unavailable_chats: tuple[WatchedChat, ...] = ()
 
 
 class PollRun:
@@ -66,32 +73,51 @@ class PollRun:
         self._notifier = notifier
         self._clock = clock
 
-    def run(self) -> RunOutcome:
+    def run(self) -> RunReport:
+        started_at = self._clock()
+        polled_chats: list[WatchedChat] = []
+        unavailable_chats: list[WatchedChat] = []
+        outcome, error_type = self._run(polled_chats, unavailable_chats)
+        return RunReport(
+            started_at=started_at,
+            finished_at=self._clock(),
+            outcome=outcome,
+            error_type=error_type,
+            polled_chats=tuple(polled_chats),
+            unavailable_chats=tuple(unavailable_chats),
+        )
+
+    def _run(
+        self,
+        polled_chats: list[WatchedChat],
+        unavailable_chats: list[WatchedChat],
+    ) -> tuple[RunOutcome, str | None]:
         blocked = self._blocked_outcome()
         if blocked is not None:
-            return blocked
+            return blocked, None
         try:
             with self._connect() as client:
-                self._poll_chats(client)
+                self._poll_chats(client, polled_chats, unavailable_chats)
         except NetworkUnavailable:
             logger.warning("run ended: network unavailable")
-            return RunOutcome.NETWORK_UNAVAILABLE
+            return RunOutcome.NETWORK_UNAVAILABLE, None
         except RateLimited as error:
             retry_at = self._clock() + error.wait
             with self._transaction:
                 self._account_state.defer_until(retry_at)
             logger.warning("run ended: rate limited until %s", retry_at.isoformat())
-            return RunOutcome.RATE_LIMITED
+            return RunOutcome.RATE_LIMITED, None
         except AuthorizationFailed as error:
             with self._transaction:
                 self._account_state.halt(error.reason)
             logger.error("run halted: %s", error.reason)
             self._notifier.notify(HALT_NOTICES[error.reason])
-            return RunOutcome.HALTED
+            return RunOutcome.HALTED, None
         except Exception as error:  # noqa: BLE001
-            logger.error("run failed: %s", type(error).__name__)
-            return RunOutcome.FAILED
-        return RunOutcome.COMPLETED
+            error_type = type(error).__name__
+            logger.error("run failed: %s", error_type)
+            return RunOutcome.FAILED, error_type
+        return RunOutcome.COMPLETED, None
 
     def _blocked_outcome(self) -> RunOutcome | None:
         halt_reason = self._account_state.halt_reason()
@@ -104,10 +130,17 @@ class PollRun:
             return RunOutcome.RATE_LIMITED
         return None
 
-    def _poll_chats(self, client: ChatClient) -> None:
+    def _poll_chats(
+        self,
+        client: ChatClient,
+        polled_chats: list[WatchedChat],
+        unavailable_chats: list[WatchedChat],
+    ) -> None:
         for chat in self._chats:
             try:
                 self._chat_poller.poll(client, chat)
             except ChatUnavailable:
                 logger.warning("chat unavailable: %s", chat.name)
-                self._notifier.notify(f"Telegram watcher could not poll {chat.name}.")
+                unavailable_chats.append(chat)
+            else:
+                polled_chats.append(chat)

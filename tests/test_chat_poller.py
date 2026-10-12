@@ -78,6 +78,16 @@ def test_catch_up_is_capped_per_poll_and_resumes_on_next_poll(
     ]
 
 
+def test_short_page_ends_fetching_without_another_request(connection, clock):
+    poller = make_chat_poller(connection, clock, page_size=2)
+    telegram = FakeTelegram()
+    with telegram.connect() as client:
+        poller.poll(client, WATCHED_CHANNEL)
+        telegram.publish(TEXT_POST, CAPTION_POST, PHOTO_POST)
+        poller.poll(client, WATCHED_CHANNEL)
+    assert telegram.fetched_after_ids == [0, 102]
+
+
 def test_recheck_records_edits_and_deletions(db_path, connection, clock, poller):
     make_recorder(connection).record_new_posts(
         WATCHED_CHAT, [TEXT_POST, PHOTO_POST], HOUR_1
