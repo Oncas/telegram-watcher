@@ -62,7 +62,15 @@ class FakeTelethon:
         if self.connect_failure is not None:
             raise self.connect_failure
 
-    async def disconnect(self):
+    def disconnect(self):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            self.disconnected = True
+            return None
+        return self._disconnect_in_running_loop()
+
+    async def _disconnect_in_running_loop(self):
         self.disconnected = True
 
     async def get_messages(
