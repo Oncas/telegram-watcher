@@ -2,7 +2,7 @@ import stat
 
 import pytest
 
-from group_watcher.config import (
+from telegram_watcher.config import (
     Config,
     ConfigError,
     WatchedChat,

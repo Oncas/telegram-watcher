@@ -2,12 +2,12 @@ from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from datetime import timedelta
 
-from group_watcher.alerts import AlertKind, Alerts
-from group_watcher.client import HaltReason
-from group_watcher.config import WatchedChat
-from group_watcher.poll_run import RunOutcome, RunReport
-from group_watcher.storage.chat_poll_repository import ChatPollRepository
-from group_watcher.storage.run_log_repository import RunLogRepository
+from telegram_watcher.alerts import AlertKind, Alerts
+from telegram_watcher.client import HaltReason
+from telegram_watcher.config import WatchedChat
+from telegram_watcher.poll_run import RunOutcome, RunReport
+from telegram_watcher.storage.chat_poll_repository import ChatPollRepository
+from telegram_watcher.storage.run_log_repository import RunLogRepository
 
 STALE_AFTER = timedelta(hours=24)
 

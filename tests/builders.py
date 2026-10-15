@@ -1,15 +1,15 @@
 from contextlib import closing
 
-from group_watcher.chat_poller import ChatPoller
-from group_watcher.listeners import Listeners
-from group_watcher.poll_run import PollRun
-from group_watcher.recorder import PostRecorder
-from group_watcher.storage.account_state_repository import AccountStateRepository
-from group_watcher.storage.checkpoint_repository import CheckpointRepository
-from group_watcher.storage.database import open_database
-from group_watcher.storage.match_repository import MatchRepository
-from group_watcher.storage.post_repository import PostRepository
-from group_watcher.watcher import run_watcher
+from telegram_watcher.chat_poller import ChatPoller
+from telegram_watcher.listeners import Listeners
+from telegram_watcher.poll_run import PollRun
+from telegram_watcher.recorder import PostRecorder
+from telegram_watcher.storage.account_state_repository import AccountStateRepository
+from telegram_watcher.storage.checkpoint_repository import CheckpointRepository
+from telegram_watcher.storage.database import open_database
+from telegram_watcher.storage.match_repository import MatchRepository
+from telegram_watcher.storage.post_repository import PostRepository
+from telegram_watcher.watcher import run_watcher
 
 
 def make_recorder(connection):

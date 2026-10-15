@@ -3,7 +3,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from group_watcher.private_files import (
+from telegram_watcher.private_files import (
     PrivateFileError,
     read_private_file,
     write_private_file,
@@ -37,7 +37,7 @@ def load_credentials(path: Path) -> Credentials:
     except PrivateFileError as error:
         raise CredentialsError(str(error)) from None
     if text is None:
-        raise CredentialsError(f"{path} is missing; run group-watcher login")
+        raise CredentialsError(f"{path} is missing; run telegram-watcher login")
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError:

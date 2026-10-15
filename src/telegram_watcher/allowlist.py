@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 
-from group_watcher.posts import Post
+from telegram_watcher.posts import Post
 
 
 class PostFromOtherChatError(Exception):

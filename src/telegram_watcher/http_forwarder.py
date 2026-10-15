@@ -5,8 +5,8 @@ import urllib.request
 from collections.abc import Mapping
 from typing import Any
 
-from group_watcher.forward_target import ForwardTarget
-from group_watcher.forwarder import ForwardFailed
+from telegram_watcher.forward_target import ForwardTarget
+from telegram_watcher.forwarder import ForwardFailed
 
 TIMEOUT_SECONDS = 10
 

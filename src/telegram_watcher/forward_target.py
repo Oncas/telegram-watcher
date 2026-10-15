@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from group_watcher.config import ConfigError
-from group_watcher.private_files import PrivateFileError, read_private_file
+from telegram_watcher.config import ConfigError
+from telegram_watcher.private_files import PrivateFileError, read_private_file
 
 FORWARD_KEYS = {"url", "token"}
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9._~+/=-]+")

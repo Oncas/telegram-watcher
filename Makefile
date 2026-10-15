@@ -20,4 +20,4 @@ format:
 	$(RUN) sh -c "ruff check --fix && ruff format"
 
 init login pick-chats run clear-halt:
-	$(RUN) group-watcher $@
+	$(RUN) telegram-watcher $@

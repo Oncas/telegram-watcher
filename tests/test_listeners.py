@@ -20,8 +20,8 @@ from samples import (
     WATCHED_CHAT,
 )
 
-from group_watcher.client import NetworkUnavailable
-from group_watcher.listeners import Listener, load_listeners
+from telegram_watcher.client import NetworkUnavailable
+from telegram_watcher.listeners import Listener, load_listeners
 
 EXAMPLE = Path(__file__).parents[1] / "listeners" / "example.py"
 LISTENER_SOURCE = (

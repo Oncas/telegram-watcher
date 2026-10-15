@@ -1,7 +1,7 @@
 import pytest
 from fakes import FakeEndpoint, FakeNotifySend
 
-from group_watcher.storage.database import create_database, open_database
+from telegram_watcher.storage.database import create_database, open_database
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@ from collections.abc import Iterable, Sequence
 
 from telethon import types, utils
 
-from group_watcher.config import WatchedChat
+from telegram_watcher.config import WatchedChat
 
 
 def watched_chats(entities: Iterable[object]) -> list[WatchedChat]:

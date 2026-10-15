@@ -2,8 +2,8 @@ import json
 import sqlite3
 from datetime import datetime
 
-from group_watcher.matches import Match
-from group_watcher.storage.timestamps import format_timestamp, parse_timestamp
+from telegram_watcher.matches import Match
+from telegram_watcher.storage.timestamps import format_timestamp, parse_timestamp
 
 
 class MatchRepository:
