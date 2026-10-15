@@ -5,7 +5,7 @@ import pytest
 from samples import T0, WATCHED_CHANNEL, WATCHED_CHAT
 from telethon import errors, types
 
-from group_watcher.client import (
+from telegram_watcher.client import (
     AuthorizationFailed,
     ChatUnavailable,
     HaltReason,
@@ -13,9 +13,9 @@ from group_watcher.client import (
     Page,
     RateLimited,
 )
-from group_watcher.config import WatchedChat
-from group_watcher.posts import MediaKind, Post
-from group_watcher.telethon_client import connect_telethon
+from telegram_watcher.config import WatchedChat
+from telegram_watcher.posts import MediaKind, Post
+from telegram_watcher.telethon_client import connect_telethon
 
 WATCHED_PEER = types.PeerChannel(channel_id=1)
 BASIC_GROUP = WatchedChat(name="Synthetic group", chat_id=-4001, access_hash=None)

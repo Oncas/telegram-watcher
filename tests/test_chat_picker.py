@@ -2,8 +2,8 @@ import pytest
 from samples import SECOND_CHANNEL, T0, WATCHED_CHANNEL
 from telethon import types
 
-from group_watcher.chat_picker import select_chats, terminal_safe, watched_chats
-from group_watcher.config import WatchedChat
+from telegram_watcher.chat_picker import select_chats, terminal_safe, watched_chats
+from telegram_watcher.config import WatchedChat
 
 BASIC_GROUP = WatchedChat(name="Synthetic basic group", chat_id=-42, access_hash=None)
 PERSON = WatchedChat(name="Synthetic person", chat_id=7, access_hash=7777)

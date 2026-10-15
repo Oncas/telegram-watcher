@@ -2,8 +2,8 @@ import logging
 from contextlib import AbstractContextManager
 from enum import StrEnum
 
-from group_watcher.notifier import NotificationFailed, Notifier
-from group_watcher.storage.alert_repository import AlertRepository
+from telegram_watcher.notifier import NotificationFailed, Notifier
+from telegram_watcher.storage.alert_repository import AlertRepository
 
 logger = logging.getLogger(__name__)
 

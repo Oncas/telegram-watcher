@@ -1,8 +1,8 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
-from group_watcher.config import WatchedChat
-from group_watcher.posts import MediaKind, Post
+from telegram_watcher.config import WatchedChat
+from telegram_watcher.posts import MediaKind, Post
 
 WATCHED_CHAT = -1000000000001
 UNRELATED_CHAT = -1000000000002

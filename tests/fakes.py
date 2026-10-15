@@ -5,11 +5,11 @@ from contextlib import contextmanager
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from group_watcher.client import Page
-from group_watcher.config import WatchedChat
-from group_watcher.forwarder import ForwardFailed
-from group_watcher.notifier import NotificationFailed
-from group_watcher.posts import Post
+from telegram_watcher.client import Page
+from telegram_watcher.config import WatchedChat
+from telegram_watcher.forwarder import ForwardFailed
+from telegram_watcher.notifier import NotificationFailed
+from telegram_watcher.posts import Post
 
 
 class FakeTelegram:

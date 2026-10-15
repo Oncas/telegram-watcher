@@ -4,8 +4,8 @@ from datetime import timedelta
 from enum import StrEnum
 from typing import Protocol
 
-from group_watcher.config import WatchedChat
-from group_watcher.posts import Post
+from telegram_watcher.config import WatchedChat
+from telegram_watcher.posts import Post
 
 
 class HaltReason(StrEnum):

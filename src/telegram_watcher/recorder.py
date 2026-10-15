@@ -2,12 +2,12 @@ from collections.abc import Iterable, Sequence
 from contextlib import AbstractContextManager
 from datetime import datetime
 
-from group_watcher.allowlist import reject_posts_from_other_chats
-from group_watcher.listeners import Listeners
-from group_watcher.posts import Post
-from group_watcher.storage.checkpoint_repository import CheckpointRepository
-from group_watcher.storage.match_repository import MatchRepository
-from group_watcher.storage.post_repository import PostRepository
+from telegram_watcher.allowlist import reject_posts_from_other_chats
+from telegram_watcher.listeners import Listeners
+from telegram_watcher.posts import Post
+from telegram_watcher.storage.checkpoint_repository import CheckpointRepository
+from telegram_watcher.storage.match_repository import MatchRepository
+from telegram_watcher.storage.post_repository import PostRepository
 
 
 class PostRecorder:

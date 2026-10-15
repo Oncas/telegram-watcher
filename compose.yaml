@@ -1,7 +1,7 @@
 services:
   watcher:
     build: .
-    image: group-watcher
+    image: telegram-watcher
     user: "${HOST_UID:?run through make}:${HOST_GID:?run through make}"
     volumes:
       - .:/app

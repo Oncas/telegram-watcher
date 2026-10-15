@@ -8,7 +8,7 @@ from samples import (
     WATCHED_CHAT,
 )
 
-from group_watcher.allowlist import (
+from telegram_watcher.allowlist import (
     PostFromOtherChatError,
     reject_posts_from_other_chats,
 )

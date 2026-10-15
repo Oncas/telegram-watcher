@@ -1,7 +1,7 @@
 import pytest
 
-from group_watcher.desktop_notifier import DesktopNotifier
-from group_watcher.notifier import NotificationFailed
+from telegram_watcher.desktop_notifier import DesktopNotifier
+from telegram_watcher.notifier import NotificationFailed
 
 
 def test_message_is_shown_as_a_desktop_notification(notify_send):

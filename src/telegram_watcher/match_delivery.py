@@ -4,12 +4,12 @@ from contextlib import AbstractContextManager
 from datetime import datetime
 from typing import Any
 
-from group_watcher.alerts import AlertKind, Alerts
-from group_watcher.forwarder import Forwarder, ForwardFailed
-from group_watcher.matches import Match
-from group_watcher.notifier import NotificationFailed, Notifier
-from group_watcher.storage.match_repository import MatchRepository
-from group_watcher.storage.timestamps import format_timestamp
+from telegram_watcher.alerts import AlertKind, Alerts
+from telegram_watcher.forwarder import Forwarder, ForwardFailed
+from telegram_watcher.matches import Match
+from telegram_watcher.notifier import NotificationFailed, Notifier
+from telegram_watcher.storage.match_repository import MatchRepository
+from telegram_watcher.storage.timestamps import format_timestamp
 
 logger = logging.getLogger(__name__)
 

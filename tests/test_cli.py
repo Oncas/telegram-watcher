@@ -5,16 +5,16 @@ from contextlib import closing
 import pytest
 from samples import SECOND_CHANNEL, T0, WATCHED_CHANNEL, WATCHED_CHAT
 
-from group_watcher.cli import main
-from group_watcher.client import HaltReason
-from group_watcher.config import Config, save_config
-from group_watcher.credentials import Credentials, save_credentials
-from group_watcher.matches import Match
-from group_watcher.private_files import write_private_file
-from group_watcher.run_lock import run_lock
-from group_watcher.storage.account_state_repository import AccountStateRepository
-from group_watcher.storage.database import open_database
-from group_watcher.storage.match_repository import MatchRepository
+from telegram_watcher.cli import main
+from telegram_watcher.client import HaltReason
+from telegram_watcher.config import Config, save_config
+from telegram_watcher.credentials import Credentials, save_credentials
+from telegram_watcher.matches import Match
+from telegram_watcher.private_files import write_private_file
+from telegram_watcher.run_lock import run_lock
+from telegram_watcher.storage.account_state_repository import AccountStateRepository
+from telegram_watcher.storage.database import open_database
+from telegram_watcher.storage.match_repository import MatchRepository
 
 SYNTHETIC_HASH = "0123456789abcdef0123456789abcdef"
 SESSION_ENDED_NOTICE = (
@@ -174,7 +174,7 @@ def test_pick_chats_says_when_there_are_no_chats_to_watch(var, monkeypatch, caps
     async def no_chats(credentials, session):
         return []
 
-    monkeypatch.setattr("group_watcher.cli.list_chats", no_chats)
+    monkeypatch.setattr("telegram_watcher.cli.list_chats", no_chats)
     assert main(["pick-chats"]) == 1
     assert "no chats that can be watched" in capsys.readouterr().err
     assert not (var / "config.toml").exists()
@@ -187,7 +187,7 @@ def test_login_refuses_malformed_credentials_without_saving_or_echoing_them(
     var, monkeypatch, capsys, api_id, api_hash
 ):
     monkeypatch.setattr("builtins.input", lambda prompt: api_id)
-    monkeypatch.setattr("group_watcher.cli.getpass", lambda prompt: api_hash)
+    monkeypatch.setattr("telegram_watcher.cli.getpass", lambda prompt: api_hash)
     assert main(["login"]) == 1
     assert not (var / "credentials.toml").exists()
     output = capsys.readouterr()

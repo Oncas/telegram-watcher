@@ -2,8 +2,8 @@ import sqlite3
 from collections.abc import Iterable
 from datetime import datetime
 
-from group_watcher.posts import Post
-from group_watcher.storage.timestamps import format_timestamp
+from telegram_watcher.posts import Post
+from telegram_watcher.storage.timestamps import format_timestamp
 
 
 class PostRepository:

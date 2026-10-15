@@ -6,16 +6,16 @@ from pathlib import Path
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
-from group_watcher.chat_picker import watched_chats
-from group_watcher.client import AuthorizationFailed, HaltReason
-from group_watcher.config import WatchedChat
-from group_watcher.credentials import Credentials
-from group_watcher.private_files import read_private_file
-from group_watcher.telethon_client import TelethonChatClient, connect_telethon
+from telegram_watcher.chat_picker import watched_chats
+from telegram_watcher.client import AuthorizationFailed, HaltReason
+from telegram_watcher.config import WatchedChat
+from telegram_watcher.credentials import Credentials
+from telegram_watcher.private_files import read_private_file
+from telegram_watcher.telethon_client import TelethonChatClient, connect_telethon
 
 CLIENT_OPTIONS = {
     "receive_updates": False,
-    "device_model": "Group watcher",
+    "device_model": "Telegram watcher",
     "system_version": "Linux",
     "app_version": "0.1.0",
     "connection_retries": 1,

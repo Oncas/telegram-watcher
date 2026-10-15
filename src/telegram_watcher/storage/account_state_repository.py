@@ -1,8 +1,8 @@
 import sqlite3
 from datetime import datetime
 
-from group_watcher.client import HaltReason
-from group_watcher.storage.timestamps import format_timestamp, parse_timestamp
+from telegram_watcher.client import HaltReason
+from telegram_watcher.storage.timestamps import format_timestamp, parse_timestamp
 
 
 class AccountStateRepository:

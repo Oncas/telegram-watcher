@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
 
-from group_watcher.chat_ids import is_marked_chat_id
+from telegram_watcher.chat_ids import is_marked_chat_id
 
 
 class MediaKind(StrEnum):

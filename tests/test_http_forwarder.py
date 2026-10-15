@@ -3,9 +3,9 @@ import socket
 
 import pytest
 
-from group_watcher.forward_target import ForwardTarget
-from group_watcher.forwarder import ForwardFailed
-from group_watcher.http_forwarder import HttpForwarder
+from telegram_watcher.forward_target import ForwardTarget
+from telegram_watcher.forwarder import ForwardFailed
+from telegram_watcher.http_forwarder import HttpForwarder
 
 TOKEN = "synthetic-token"
 PAYLOAD = {"id": "synthetic", "data": {"text": "Synthetic caption \u00fc"}}
@@ -48,7 +48,7 @@ def test_unreachable_endpoint_fails_the_forward():
 
 
 def test_endpoint_that_never_answers_times_out(monkeypatch):
-    monkeypatch.setattr("group_watcher.http_forwarder.TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr("telegram_watcher.http_forwarder.TIMEOUT_SECONDS", 0.05)
     with socket.socket() as silent:
         silent.bind(("127.0.0.1", 0))
         silent.listen()

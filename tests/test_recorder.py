@@ -17,9 +17,9 @@ from samples import (
     WATCHED_CHAT,
 )
 
-from group_watcher.allowlist import PostFromOtherChatError
-from group_watcher.storage.checkpoint_repository import CheckpointRepository
-from group_watcher.storage.database import open_database
+from telegram_watcher.allowlist import PostFromOtherChatError
+from telegram_watcher.storage.checkpoint_repository import CheckpointRepository
+from telegram_watcher.storage.database import open_database
 
 HOUR_1 = T0 + timedelta(hours=1)
 HOUR_2 = T0 + timedelta(hours=2)

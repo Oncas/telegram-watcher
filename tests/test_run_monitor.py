@@ -7,14 +7,14 @@ from builders import run_hourly
 from fakes import FakeClock, FakeNotifier, FakeTelegram
 from samples import SECOND_CHANNEL, T0, WATCHED_CHANNEL, WATCHED_CHAT
 
-from group_watcher.client import (
+from telegram_watcher.client import (
     AuthorizationFailed,
     ChatUnavailable,
     HaltReason,
     NetworkUnavailable,
 )
-from group_watcher.storage.account_state_repository import AccountStateRepository
-from group_watcher.storage.database import open_database
+from telegram_watcher.storage.account_state_repository import AccountStateRepository
+from telegram_watcher.storage.database import open_database
 
 CHATS = (WATCHED_CHANNEL, SECOND_CHANNEL)
 

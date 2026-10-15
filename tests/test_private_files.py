@@ -2,13 +2,13 @@ import stat
 
 import pytest
 
-from group_watcher.credentials import (
+from telegram_watcher.credentials import (
     Credentials,
     CredentialsError,
     load_credentials,
     save_credentials,
 )
-from group_watcher.private_files import (
+from telegram_watcher.private_files import (
     PrivateFileError,
     read_private_file,
     write_private_file,

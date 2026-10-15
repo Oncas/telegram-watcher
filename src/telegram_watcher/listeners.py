@@ -7,8 +7,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from group_watcher.matches import Match
-from group_watcher.posts import Post
+from telegram_watcher.matches import Match
+from telegram_watcher.posts import Post
 
 TEMPLATE_NAME = "example"
 

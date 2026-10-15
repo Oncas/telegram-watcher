@@ -7,7 +7,7 @@ from typing import Any
 
 from telethon import TelegramClient, errors, types, utils
 
-from group_watcher.client import (
+from telegram_watcher.client import (
     AuthorizationFailed,
     ChatUnavailable,
     HaltReason,
@@ -15,8 +15,8 @@ from group_watcher.client import (
     Page,
     RateLimited,
 )
-from group_watcher.config import WatchedChat
-from group_watcher.posts import MediaKind, Post
+from telegram_watcher.config import WatchedChat
+from telegram_watcher.posts import MediaKind, Post
 
 logger = logging.getLogger(__name__)
 

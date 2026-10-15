@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from group_watcher.chat_poller import ChatPoller
-from group_watcher.client import (
+from telegram_watcher.chat_poller import ChatPoller
+from telegram_watcher.client import (
     AuthorizationFailed,
     ChatClient,
     ChatUnavailable,
@@ -14,8 +14,8 @@ from group_watcher.client import (
     NetworkUnavailable,
     RateLimited,
 )
-from group_watcher.config import WatchedChat
-from group_watcher.storage.account_state_repository import AccountStateRepository
+from telegram_watcher.config import WatchedChat
+from telegram_watcher.storage.account_state_repository import AccountStateRepository
 
 logger = logging.getLogger(__name__)
 

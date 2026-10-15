@@ -5,8 +5,8 @@ from contextlib import closing
 import pytest
 from samples import WATCHED_CHAT
 
-from group_watcher.storage.checkpoint_repository import CheckpointRepository
-from group_watcher.storage.database import (
+from telegram_watcher.storage.checkpoint_repository import CheckpointRepository
+from telegram_watcher.storage.database import (
     StorageError,
     create_database,
     open_database,

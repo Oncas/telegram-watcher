@@ -17,15 +17,15 @@ from samples import (
     WATCHED_CHAT,
 )
 
-from group_watcher.client import (
+from telegram_watcher.client import (
     AuthorizationFailed,
     ChatUnavailable,
     HaltReason,
     NetworkUnavailable,
     RateLimited,
 )
-from group_watcher.poll_run import RunOutcome
-from group_watcher.storage.database import open_database
+from telegram_watcher.poll_run import RunOutcome
+from telegram_watcher.storage.database import open_database
 
 CHATS = (WATCHED_CHANNEL, SECOND_CHANNEL)
 

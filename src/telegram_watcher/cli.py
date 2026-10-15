@@ -12,36 +12,40 @@ from pathlib import Path
 
 from telethon import errors
 
-from group_watcher.chat_picker import select_chats, terminal_safe
-from group_watcher.config import (
+from telegram_watcher.chat_picker import select_chats, terminal_safe
+from telegram_watcher.config import (
     Config,
     ConfigError,
     WatchedChat,
     load_config,
     save_config,
 )
-from group_watcher.credentials import (
+from telegram_watcher.credentials import (
     Credentials,
     CredentialsError,
     load_credentials,
     save_credentials,
 )
-from group_watcher.desktop_notifier import DesktopNotifier
-from group_watcher.forward_target import load_forward_target
-from group_watcher.http_forwarder import HttpForwarder
-from group_watcher.listeners import load_listeners
-from group_watcher.notifier import NotificationFailed, Notifier
-from group_watcher.poll_run import RunOutcome
-from group_watcher.private_files import (
+from telegram_watcher.desktop_notifier import DesktopNotifier
+from telegram_watcher.forward_target import load_forward_target
+from telegram_watcher.http_forwarder import HttpForwarder
+from telegram_watcher.listeners import load_listeners
+from telegram_watcher.notifier import NotificationFailed, Notifier
+from telegram_watcher.poll_run import RunOutcome
+from telegram_watcher.private_files import (
     PrivateFileError,
     read_private_file,
     write_private_file,
 )
-from group_watcher.run_lock import AlreadyRunning, run_lock
-from group_watcher.storage.account_state_repository import AccountStateRepository
-from group_watcher.storage.database import StorageError, create_database, open_database
-from group_watcher.telegram_account import list_chats, open_telegram, sign_in
-from group_watcher.watcher import run_watcher
+from telegram_watcher.run_lock import AlreadyRunning, run_lock
+from telegram_watcher.storage.account_state_repository import AccountStateRepository
+from telegram_watcher.storage.database import (
+    StorageError,
+    create_database,
+    open_database,
+)
+from telegram_watcher.telegram_account import list_chats, open_telegram, sign_in
+from telegram_watcher.watcher import run_watcher
 
 VAR_DIR = Path("var")
 DATABASE_PATH = VAR_DIR / "watcher.db"
@@ -63,7 +67,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "run": (run, "poll the watched chats once"),
         "clear-halt": (clear_halt, "resume runs after fixing what halted them"),
     }
-    parser = argparse.ArgumentParser(prog="group-watcher")
+    parser = argparse.ArgumentParser(prog="telegram-watcher")
     subcommands = parser.add_subparsers(required=True)
     for name, (command, help_text) in commands.items():
         subcommands.add_parser(name, help=help_text).set_defaults(command=command)
@@ -87,7 +91,7 @@ def initialize() -> int:
 
 def log_in() -> int:
     if not VAR_DIR.is_dir():
-        return _fail("run group-watcher init first")
+        return _fail("run telegram-watcher init first")
     try:
         if CREDENTIALS_PATH.exists():
             credentials = load_credentials(CREDENTIALS_PATH)
@@ -107,7 +111,7 @@ def log_in() -> int:
             "The previous session was replaced. If it is still listed in Telegram"
             " under Settings -> Devices, terminate it there."
         )
-    print("If runs were halted, run group-watcher clear-halt.")
+    print("If runs were halted, run telegram-watcher clear-halt.")
     return 0
 
 
@@ -120,7 +124,7 @@ def pick_chats() -> int:
     except (CredentialsError, PrivateFileError) as error:
         return _fail(error)
     if session is None:
-        return _fail("not logged in; run group-watcher login")
+        return _fail("not logged in; run telegram-watcher login")
     try:
         chats = asyncio.run(list_chats(credentials, session))
     except (OSError, errors.RPCError) as error:
