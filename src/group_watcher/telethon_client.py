@@ -91,7 +91,7 @@ def connect_telethon(
                 runner.run(client.connect())
             yield TelethonChatClient(client, runner.run)
         finally:
-            runner.run(client.disconnect())
+            runner.run(_disconnect_in_loop(client))
 
 
 @contextmanager
@@ -170,3 +170,7 @@ async def _create_in_loop(
     create_client: Callable[[], TelegramClient],
 ) -> TelegramClient:
     return create_client()
+
+
+async def _disconnect_in_loop(client: TelegramClient) -> None:
+    await client.disconnect()
