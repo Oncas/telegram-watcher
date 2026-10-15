@@ -27,6 +27,9 @@ from group_watcher.credentials import (
     save_credentials,
 )
 from group_watcher.desktop_notifier import DesktopNotifier
+from group_watcher.forward_target import load_forward_target
+from group_watcher.http_forwarder import HttpForwarder
+from group_watcher.listeners import load_listeners
 from group_watcher.notifier import NotificationFailed, Notifier
 from group_watcher.poll_run import RunOutcome
 from group_watcher.private_files import (
@@ -46,6 +49,8 @@ CONFIG_PATH = VAR_DIR / "config.toml"
 CREDENTIALS_PATH = VAR_DIR / "credentials.toml"
 SESSION_PATH = VAR_DIR / "telegram.session"
 LOCK_PATH = VAR_DIR / "run.lock"
+FORWARD_PATH = VAR_DIR / "forward.toml"
+LISTENERS_DIR = Path("listeners")
 
 logger = logging.getLogger(__name__)
 
@@ -136,12 +141,15 @@ def run() -> int:
         with run_lock(LOCK_PATH):
             config = load_config(CONFIG_PATH)
             credentials = load_credentials(CREDENTIALS_PATH)
+            forward_target = load_forward_target(FORWARD_PATH)
             with closing(open_database(DATABASE_PATH)) as connection:
                 report = run_watcher(
                     connection,
                     chats=config.chats,
                     connect=partial(open_telegram, credentials, SESSION_PATH),
+                    listeners=load_listeners(LISTENERS_DIR),
                     notifier=notifier,
+                    forwarder=HttpForwarder(forward_target) if forward_target else None,
                     clock=partial(datetime.now, UTC),
                 )
     except AlreadyRunning:

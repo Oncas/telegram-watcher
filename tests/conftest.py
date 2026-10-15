@@ -1,5 +1,5 @@
 import pytest
-from fakes import FakeNotifySend
+from fakes import FakeEndpoint, FakeNotifySend
 
 from group_watcher.storage.database import create_database, open_database
 
@@ -23,3 +23,10 @@ def notify_send(tmp_path_factory, monkeypatch):
     directory = tmp_path_factory.mktemp("bin")
     monkeypatch.setenv("PATH", str(directory))
     return FakeNotifySend(directory)
+
+
+@pytest.fixture
+def endpoint():
+    endpoint = FakeEndpoint()
+    yield endpoint
+    endpoint.close()

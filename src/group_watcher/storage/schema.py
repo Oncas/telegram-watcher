@@ -1,4 +1,4 @@
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = f"""
 BEGIN;
@@ -52,6 +52,19 @@ CREATE TABLE active_alerts (
     kind TEXT NOT NULL,
     subject TEXT NOT NULL,
     PRIMARY KEY (kind, subject)
+) STRICT;
+
+CREATE TABLE listener_matches (
+    match_id TEXT PRIMARY KEY,
+    listener TEXT NOT NULL,
+    chat_id INTEGER NOT NULL,
+    message_id INTEGER NOT NULL,
+    posted_at TEXT NOT NULL,
+    edited_at TEXT,
+    data TEXT NOT NULL,
+    found_at TEXT NOT NULL,
+    notified_at TEXT,
+    forwarded_at TEXT
 ) STRICT;
 
 CREATE VIEW events AS
