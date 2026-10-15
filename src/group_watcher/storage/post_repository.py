@@ -10,7 +10,7 @@ class PostRepository:
     def __init__(self, connection: sqlite3.Connection):
         self._connection = connection
 
-    def save(self, post: Post, fetched_at: datetime) -> None:
+    def save(self, post: Post, fetched_at: datetime) -> bool:
         self._connection.execute(
             "INSERT INTO posts (chat_id, message_id, posted_at, album_id)"
             " VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
@@ -28,10 +28,12 @@ class PostRepository:
         ).fetchone()
         if latest is None:
             self._add_version(post, 1, fetched_at)
-            return
+            return True
         latest_version, latest_edited_at = latest
-        if latest_edited_at != format_timestamp(post.edited_at):
-            self._add_version(post, latest_version + 1, fetched_at)
+        if latest_edited_at == format_timestamp(post.edited_at):
+            return False
+        self._add_version(post, latest_version + 1, fetched_at)
+        return True
 
     def recent_message_ids(self, chat_id: int, posted_since: datetime) -> list[int]:
         rows = self._connection.execute(

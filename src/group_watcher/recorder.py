@@ -3,8 +3,10 @@ from contextlib import AbstractContextManager
 from datetime import datetime
 
 from group_watcher.allowlist import reject_posts_from_other_chats
+from group_watcher.listeners import Listeners
 from group_watcher.posts import Post
 from group_watcher.storage.checkpoint_repository import CheckpointRepository
+from group_watcher.storage.match_repository import MatchRepository
 from group_watcher.storage.post_repository import PostRepository
 
 
@@ -15,10 +17,14 @@ class PostRecorder:
         transaction: AbstractContextManager,
         post_repository: PostRepository,
         checkpoint_repository: CheckpointRepository,
+        listeners: Listeners,
+        match_repository: MatchRepository,
     ):
         self._transaction = transaction
         self._posts = post_repository
         self._checkpoints = checkpoint_repository
+        self._listeners = listeners
+        self._matches = match_repository
 
     def record_new_posts(
         self,
@@ -34,7 +40,7 @@ class PostRecorder:
             read_ids.append(read_through)
         with self._transaction:
             for post in posts:
-                self._posts.save(post, fetched_at)
+                self._save(post, fetched_at)
             if read_ids:
                 self._checkpoints.advance(chat_id, max(read_ids))
 
@@ -53,5 +59,10 @@ class PostRecorder:
         missing_ids = set(requested_ids) - {post.message_id for post in posts}
         with self._transaction:
             for post in posts:
-                self._posts.save(post, fetched_at)
+                self._save(post, fetched_at)
             self._posts.mark_deleted(chat_id, missing_ids, fetched_at)
+
+    def _save(self, post: Post, fetched_at: datetime) -> None:
+        if self._posts.save(post, fetched_at):
+            for match in self._listeners.hear(post):
+                self._matches.add(match, fetched_at)
