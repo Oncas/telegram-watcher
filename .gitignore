@@ -1,6 +1,7 @@
 /var/
+/listeners/*
+!/listeners/example.py
 
-# Telethon writes a bare-named session to the working directory, outside /var/.
 *.session
 *.session-journal
 .env

@@ -1,9 +1,13 @@
+import json
+import threading
 from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from group_watcher.client import Page
 from group_watcher.config import WatchedChat
+from group_watcher.forwarder import ForwardFailed
 from group_watcher.notifier import NotificationFailed
 from group_watcher.posts import Post
 
@@ -91,6 +95,19 @@ class FakeNotifier:
         self.messages.append(message)
 
 
+class FakeForwarder:
+    def __init__(self):
+        self.payloads: list[dict] = []
+        self.failure: str | None = None
+        self.attempts = 0
+
+    def forward(self, payload: dict) -> None:
+        self.attempts += 1
+        if self.failure is not None:
+            raise ForwardFailed(self.failure)
+        self.payloads.append(payload)
+
+
 class FakeClock:
     def __init__(self, now: datetime):
         self.now = now
@@ -107,7 +124,7 @@ class FakeNotifySend:
 
     def answer_with(self, exit_code):
         self._script.write_text(
-            f"#!/bin/sh\nIFS='\t'\nprintf '%s\\n' \"$*\" >> '{self._log}'\nexit {exit_code}\n"
+            f"#!/bin/sh\nIFS='\t'\nprintf '%s\\036' \"$*\" >> '{self._log}'\nexit {exit_code}\n"
         )
         self._script.chmod(0o700)
 
@@ -115,8 +132,48 @@ class FakeNotifySend:
     def calls(self):
         if not self._log.exists():
             return []
-        return [line.split("\t") for line in self._log.read_text().splitlines()]
+        records = self._log.read_text().split("\x1e")[:-1]
+        return [record.split("\t") for record in records]
 
     @property
     def messages(self):
         return [arguments[-1] for arguments in self.calls]
+
+
+class FakeEndpoint:
+    def __init__(self):
+        self.requests: list[tuple] = []
+        self.status = 200
+        self._server = ThreadingHTTPServer(("127.0.0.1", 0), _EndpointHandler)
+        self._server.endpoint = self
+        host, port = self._server.server_address
+        self.url = f"http://{host}:{port}/matches"
+        self._thread = threading.Thread(
+            target=self._server.serve_forever, kwargs={"poll_interval": 0.01}
+        )
+        self._thread.start()
+
+    @property
+    def payloads(self):
+        return [json.loads(body) for _, _, _, body in self.requests]
+
+    def close(self):
+        self._server.shutdown()
+        self._server.server_close()
+        self._thread.join()
+
+
+class _EndpointHandler(BaseHTTPRequestHandler):
+    def answer(self):
+        endpoint = self.server.endpoint
+        body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        endpoint.requests.append((self.command, self.path, self.headers, body))
+        self.send_response(endpoint.status)
+        self.send_header("Location", "/elsewhere")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    do_GET = do_POST = answer
+
+    def log_message(self, *arguments):
+        pass

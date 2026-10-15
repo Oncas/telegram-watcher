@@ -13,6 +13,7 @@ class AlertKind(StrEnum):
     CHAT_STALE = "chat_stale"
     RUN_FAILED = "run_failed"
     HALTED = "halted"
+    FORWARD_FAILED = "forward_failed"
 
 
 class Alerts:

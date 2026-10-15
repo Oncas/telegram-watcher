@@ -3,15 +3,18 @@ import stat
 from contextlib import closing
 
 import pytest
-from samples import SECOND_CHANNEL, WATCHED_CHANNEL
+from samples import SECOND_CHANNEL, T0, WATCHED_CHANNEL, WATCHED_CHAT
 
 from group_watcher.cli import main
 from group_watcher.client import HaltReason
 from group_watcher.config import Config, save_config
 from group_watcher.credentials import Credentials, save_credentials
+from group_watcher.matches import Match
+from group_watcher.private_files import write_private_file
 from group_watcher.run_lock import run_lock
 from group_watcher.storage.account_state_repository import AccountStateRepository
 from group_watcher.storage.database import open_database
+from group_watcher.storage.match_repository import MatchRepository
 
 SYNTHETIC_HASH = "0123456789abcdef0123456789abcdef"
 SESSION_ENDED_NOTICE = (
@@ -66,6 +69,30 @@ def test_run_without_a_session_halts_and_says_how_to_recover(configured, notify_
     assert notify_send.messages == [SESSION_ENDED_NOTICE]
 
 
+def test_pending_matches_are_forwarded_and_notified_even_while_halted(
+    configured, notify_send, endpoint
+):
+    write_private_file(
+        configured / "forward.toml", f'url = "{endpoint.url}"\ntoken = "synthetic"\n'
+    )
+    match = Match(
+        listener="whole_text",
+        chat_id=WATCHED_CHAT,
+        message_id=101,
+        posted_at=T0,
+        edited_at=None,
+        data={"text": "Synthetic text post"},
+    )
+    with closing(open_database(configured / "watcher.db")) as connection, connection:
+        MatchRepository(connection).add(match, T0)
+    assert main(["run"]) == 0
+    assert [payload["data"] for payload in endpoint.payloads] == [match.data]
+    assert notify_send.messages == [
+        "whole_text\ntext: Synthetic text post",
+        SESSION_ENDED_NOTICE,
+    ]
+
+
 def test_init_never_replaces_an_existing_database(configured, notify_send):
     main(["run"])
     assert main(["init"]) == 1
@@ -85,6 +112,17 @@ def test_invalid_config_stops_the_run_without_touching_the_database(
     assert main(["run"]) == 1
     assert run_outcomes(configured) == []
     assert halt_reason(configured) is None
+    assert notify_send.messages == [
+        "Telegram watcher cannot run: ConfigError. See the log."
+    ]
+
+
+def test_forward_settings_readable_by_others_stop_the_run(configured, notify_send):
+    forward = configured / "forward.toml"
+    forward.write_text('url = "http://127.0.0.1/"\ntoken = "synthetic"\n')
+    forward.chmod(0o644)
+    assert main(["run"]) == 1
+    assert run_outcomes(configured) == []
     assert notify_send.messages == [
         "Telegram watcher cannot run: ConfigError. See the log."
     ]
