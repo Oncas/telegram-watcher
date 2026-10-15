@@ -10,6 +10,7 @@ def watched_chats(entities: Iterable[object]) -> list[WatchedChat]:
         _watched_chat(entity)
         for entity in entities
         if isinstance(entity, (types.Channel, types.Chat))
+        or (isinstance(entity, types.User) and not entity.deleted)
     ]
 
 
@@ -29,9 +30,9 @@ def terminal_safe(text: str) -> str:
     return "".join(char if char.isprintable() else "?" for char in text)
 
 
-def _watched_chat(entity: types.Channel | types.Chat) -> WatchedChat:
+def _watched_chat(entity: types.Channel | types.Chat | types.User) -> WatchedChat:
     return WatchedChat(
-        name=entity.title,
+        name=utils.get_display_name(entity),
         chat_id=utils.get_peer_id(entity),
-        access_hash=entity.access_hash if isinstance(entity, types.Channel) else None,
+        access_hash=None if isinstance(entity, types.Chat) else entity.access_hash,
     )

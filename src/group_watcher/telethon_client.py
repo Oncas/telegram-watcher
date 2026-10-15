@@ -111,6 +111,8 @@ def input_peer(chat: WatchedChat) -> types.TypeInputPeer:
     peer_id, peer_type = utils.resolve_id(chat.chat_id)
     if peer_type is types.PeerChannel:
         return types.InputPeerChannel(channel_id=peer_id, access_hash=chat.access_hash)
+    if peer_type is types.PeerUser:
+        return types.InputPeerUser(user_id=peer_id, access_hash=chat.access_hash)
     return types.InputPeerChat(chat_id=peer_id)
 
 
@@ -123,6 +125,7 @@ def to_post(message: types.Message) -> Post:
         media_kind=media_kind(message.media),
         album_id=message.grouped_id,
         text=message.message or None,
+        outgoing=bool(message.out),
     )
 
 

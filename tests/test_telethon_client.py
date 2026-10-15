@@ -19,6 +19,7 @@ from group_watcher.telethon_client import connect_telethon
 
 WATCHED_PEER = types.PeerChannel(channel_id=1)
 BASIC_GROUP = WatchedChat(name="Synthetic group", chat_id=-4001, access_hash=None)
+PRIVATE_CHAT = WatchedChat(name="Synthetic person", chat_id=7, access_hash=7777)
 
 
 def message(message_id, peer=WATCHED_PEER, text="", **fields):
@@ -196,6 +197,22 @@ def test_basic_group_is_addressed_without_access_hash(telethon, client):
     (post,) = client.fetch_by_ids(BASIC_GROUP, [101])
     assert post.chat_id == -4001
     assert telethon.requests[0]["entity"] == types.InputPeerChat(chat_id=4001)
+
+
+def test_private_chat_is_addressed_with_its_access_hash(telethon, client):
+    telethon.messages = {101: message(101, peer=types.PeerUser(user_id=7))}
+    (post,) = client.fetch_by_ids(PRIVATE_CHAT, [101])
+    assert post.chat_id == 7
+    assert telethon.requests[0]["entity"] == types.InputPeerUser(
+        user_id=7, access_hash=7777
+    )
+
+
+@pytest.mark.parametrize("out", [True, False])
+def test_post_says_whether_the_account_sent_it(telethon, client, out):
+    telethon.messages = {101: message(101, out=out)}
+    (post,) = client.fetch_by_ids(WATCHED_CHANNEL, [101])
+    assert post.outgoing is out
 
 
 def test_rate_limit_keeps_the_wait_telegram_asked_for(telethon, client):

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
 
-from group_watcher.chat_ids import is_marked_group_or_channel_id
+from group_watcher.chat_ids import is_marked_chat_id
 
 
 class MediaKind(StrEnum):
@@ -22,12 +22,11 @@ class Post:
     media_kind: MediaKind | None = None
     album_id: int | None = None
     text: str | None = None
+    outgoing: bool = False
 
     def __post_init__(self):
-        if not is_marked_group_or_channel_id(self.chat_id):
-            raise ValueError(
-                f"chat_id {self.chat_id} is not a marked group or channel ID"
-            )
+        if not is_marked_chat_id(self.chat_id):
+            raise ValueError(f"chat_id {self.chat_id} is not a marked chat ID")
         if not _is_utc(self.posted_at):
             raise ValueError("posted_at must be a UTC datetime")
         if self.edited_at is not None and not _is_utc(self.edited_at):
