@@ -165,6 +165,21 @@ def test_pick_chats_never_overwrites_an_existing_config(configured, capsys):
     assert (configured / "config.toml").read_text() == config
 
 
+def test_pick_chats_says_when_there_are_no_chats_to_watch(var, monkeypatch, capsys):
+    save_credentials(
+        var / "credentials.toml", Credentials(api_id=12345, api_hash=SYNTHETIC_HASH)
+    )
+    write_private_file(var / "telegram.session", "synthetic")
+
+    async def no_chats(credentials, session):
+        return []
+
+    monkeypatch.setattr("group_watcher.cli.list_chats", no_chats)
+    assert main(["pick-chats"]) == 1
+    assert "no chats that can be watched" in capsys.readouterr().err
+    assert not (var / "config.toml").exists()
+
+
 @pytest.mark.parametrize(
     ("api_id", "api_hash"), [("not a number", SYNTHETIC_HASH), ("12345", "short")]
 )

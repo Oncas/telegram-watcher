@@ -4,7 +4,12 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from group_watcher.chat_ids import is_channel_id, is_marked_group_or_channel_id
+from group_watcher.chat_ids import (
+    is_basic_group_id,
+    is_channel_id,
+    is_marked_chat_id,
+    is_private_chat_id,
+)
 from group_watcher.private_files import write_private_file
 
 CONFIG_KEYS = {"chats"}
@@ -77,11 +82,13 @@ def _parse_chat(entry: dict, label: str) -> WatchedChat:
     name = _required(entry, "name", str, label)
     chat_id = _required(entry, "chat_id", int, label)
     access_hash = _optional(entry, "access_hash", int, label)
-    if not is_marked_group_or_channel_id(chat_id):
-        raise ConfigError(f"{label}: chat_id must be a marked group or channel ID")
+    if not is_marked_chat_id(chat_id):
+        raise ConfigError(f"{label}: chat_id must be a marked chat ID")
     if is_channel_id(chat_id) and access_hash is None:
         raise ConfigError(f"{label}: a channel needs an access_hash")
-    if not is_channel_id(chat_id) and access_hash is not None:
+    if is_private_chat_id(chat_id) and access_hash is None:
+        raise ConfigError(f"{label}: a private chat needs an access_hash")
+    if is_basic_group_id(chat_id) and access_hash is not None:
         raise ConfigError(
             f"{label}: a basic group has no access_hash;"
             " is the -100 prefix missing from chat_id?"

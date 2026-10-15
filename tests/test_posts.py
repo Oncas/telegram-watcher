@@ -9,16 +9,17 @@ UTC_PLUS_3 = datetime(2026, 1, 5, 12, 0, tzinfo=timezone(timedelta(hours=3)))
 
 
 @pytest.mark.parametrize(
-    "chat_id", [-1000000000001, -42], ids=["channel", "basic-group"]
+    "chat_id",
+    [-1000000000001, -42, 1234567890],
+    ids=["channel", "basic-group", "private-chat"],
 )
-def test_accepts_marked_group_and_channel_ids(chat_id):
+def test_accepts_marked_chat_ids(chat_id):
     replace(TEXT_POST, chat_id=chat_id)
 
 
-@pytest.mark.parametrize("chat_id", [1234567890, 0], ids=["unmarked-or-user", "zero"])
-def test_rejects_chat_ids_that_are_not_marked_groups_or_channels(chat_id):
+def test_rejects_chat_id_zero():
     with pytest.raises(ValueError):
-        replace(TEXT_POST, chat_id=chat_id)
+        replace(TEXT_POST, chat_id=0)
 
 
 @pytest.mark.parametrize("field", ["posted_at", "edited_at"])

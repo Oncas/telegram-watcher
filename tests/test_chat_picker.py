@@ -6,6 +6,7 @@ from group_watcher.chat_picker import select_chats, terminal_safe, watched_chats
 from group_watcher.config import WatchedChat
 
 BASIC_GROUP = WatchedChat(name="Synthetic basic group", chat_id=-42, access_hash=None)
+PERSON = WatchedChat(name="Synthetic person", chat_id=7, access_hash=7777)
 LISTED = (WATCHED_CHANNEL, SECOND_CHANNEL, BASIC_GROUP)
 
 
@@ -37,11 +38,19 @@ def test_basic_group_has_no_access_hash():
     assert watched_chats([group]) == [BASIC_GROUP]
 
 
-def test_people_and_chats_that_cannot_be_read_are_not_offered():
-    person = types.User(id=7, first_name="Synthetic person")
+@pytest.mark.parametrize("flags", [{}, {"bot": True}])
+def test_people_and_bots_keep_their_access_hash(flags):
+    person = types.User(
+        id=7, access_hash=7777, first_name="Synthetic", last_name="person", **flags
+    )
+    assert watched_chats([person]) == [PERSON]
+
+
+def test_banned_removed_and_deleted_chats_are_not_offered():
     banned = types.ChannelForbidden(id=2, access_hash=2222, title="Synthetic ban")
     removed = types.ChatForbidden(id=43, title="Synthetic removal")
-    assert watched_chats([person, banned, removed, channel(broadcast=True)]) == [
+    deleted = types.User(id=8, access_hash=8888, deleted=True)
+    assert watched_chats([banned, removed, deleted, channel(broadcast=True)]) == [
         WATCHED_CHANNEL
     ]
 

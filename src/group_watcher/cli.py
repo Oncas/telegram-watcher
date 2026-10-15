@@ -126,7 +126,7 @@ def pick_chats() -> int:
     except (OSError, errors.RPCError) as error:
         return _fail(f"cannot list chats: {type(error).__name__}")
     if not chats:
-        return _fail("the account is in no groups or channels")
+        return _fail("the account has no chats that can be watched")
     for number, chat in enumerate(chats, start=1):
         print(f"{number:4}. {terminal_safe(chat.name)}")
     selected = _ask_for_selection(chats)

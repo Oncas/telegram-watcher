@@ -19,6 +19,11 @@ access_hash = 1234567890
 [[chats]]
 name = "Synthetic basic group"
 chat_id = -42
+
+[[chats]]
+name = "Synthetic person"
+chat_id = 1234567890
+access_hash = 9876543210
 """
 
 
@@ -32,7 +37,7 @@ def write_config(tmp_path):
     return write
 
 
-def test_loads_channels_and_basic_groups(write_config):
+def test_loads_channels_basic_groups_and_private_chats(write_config):
     assert load_config(write_config(VALID_CONFIG)) == Config(
         chats=(
             WatchedChat(
@@ -44,6 +49,11 @@ def test_loads_channels_and_basic_groups(write_config):
                 name="Synthetic basic group",
                 chat_id=-42,
                 access_hash=None,
+            ),
+            WatchedChat(
+                name="Synthetic person",
+                chat_id=1234567890,
+                access_hash=9876543210,
             ),
         )
     )
@@ -112,10 +122,18 @@ def test_rejects_missing_file(tmp_path):
         pytest.param(
             """
             [[chats]]
-            name = "Synthetic user"
+            name = "Synthetic person"
             chat_id = 1234567890
             """,
-            id="unmarked-or-user-chat-id",
+            id="private-chat-without-access-hash",
+        ),
+        pytest.param(
+            """
+            [[chats]]
+            name = "Synthetic chat"
+            chat_id = 0
+            """,
+            id="zero-chat-id",
         ),
         pytest.param(
             """
