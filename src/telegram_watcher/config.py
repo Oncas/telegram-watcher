@@ -4,13 +4,13 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from group_watcher.chat_ids import (
+from telegram_watcher.chat_ids import (
     is_basic_group_id,
     is_channel_id,
     is_marked_chat_id,
     is_private_chat_id,
 )
-from group_watcher.private_files import write_private_file
+from telegram_watcher.private_files import write_private_file
 
 CONFIG_KEYS = {"chats"}
 CHAT_KEYS = {"name", "chat_id", "access_hash"}

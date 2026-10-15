@@ -3,7 +3,7 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-from group_watcher.storage.schema import SCHEMA, SCHEMA_VERSION
+from telegram_watcher.storage.schema import SCHEMA, SCHEMA_VERSION
 
 
 class StorageError(Exception):

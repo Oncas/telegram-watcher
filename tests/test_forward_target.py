@@ -1,8 +1,8 @@
 import pytest
 
-from group_watcher.config import ConfigError
-from group_watcher.forward_target import ForwardTarget, load_forward_target
-from group_watcher.private_files import write_private_file
+from telegram_watcher.config import ConfigError
+from telegram_watcher.forward_target import ForwardTarget, load_forward_target
+from telegram_watcher.private_files import write_private_file
 
 TOKEN = "synthetic-token_0123456789"
 

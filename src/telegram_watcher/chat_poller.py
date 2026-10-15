@@ -1,11 +1,11 @@
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
-from group_watcher.client import ChatClient
-from group_watcher.config import WatchedChat
-from group_watcher.recorder import PostRecorder
-from group_watcher.storage.checkpoint_repository import CheckpointRepository
-from group_watcher.storage.post_repository import PostRepository
+from telegram_watcher.client import ChatClient
+from telegram_watcher.config import WatchedChat
+from telegram_watcher.recorder import PostRecorder
+from telegram_watcher.storage.checkpoint_repository import CheckpointRepository
+from telegram_watcher.storage.post_repository import PostRepository
 
 
 class ChatPoller:

@@ -16,7 +16,7 @@ from samples import (
     WATCHED_CHAT,
 )
 
-from group_watcher.client import NetworkUnavailable
+from telegram_watcher.client import NetworkUnavailable
 
 HOUR_1 = T0 + timedelta(hours=1)
 HOUR_2 = T0 + timedelta(hours=2)

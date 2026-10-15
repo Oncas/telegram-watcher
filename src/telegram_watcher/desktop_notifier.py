@@ -1,6 +1,6 @@
 import subprocess
 
-from group_watcher.notifier import NotificationFailed
+from telegram_watcher.notifier import NotificationFailed
 
 APP_NAME = "Telegram watcher"
 

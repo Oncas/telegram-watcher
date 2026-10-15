@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 
-from group_watcher.storage.timestamps import format_timestamp
+from telegram_watcher.storage.timestamps import format_timestamp
 
 
 class ChatPollRepository:

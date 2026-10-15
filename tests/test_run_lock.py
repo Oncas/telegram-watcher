@@ -2,7 +2,7 @@ import stat
 
 import pytest
 
-from group_watcher.run_lock import AlreadyRunning, run_lock
+from telegram_watcher.run_lock import AlreadyRunning, run_lock
 
 
 def test_second_run_is_refused_while_the_first_holds_the_lock(tmp_path):
