@@ -11,13 +11,18 @@ from telegram_watcher.client import (
     AuthorizationFailed,
     ChatUnavailable,
     HaltReason,
+    Image,
     NetworkUnavailable,
     Page,
     RateLimited,
 )
 from telegram_watcher.config import WatchedChat
 from telegram_watcher.posts import MediaKind, Post
-from telegram_watcher.telethon_client import connect_telethon, listen_telethon
+from telegram_watcher.telethon_client import (
+    MAX_IMAGE_FILE_SIZE,
+    connect_telethon,
+    listen_telethon,
+)
 
 WATCHED_PEER = types.PeerChannel(channel_id=1)
 BASIC_GROUP = WatchedChat(name="Synthetic group", chat_id=-4001, access_hash=None)
@@ -39,7 +44,20 @@ def service_message(message_id):
     )
 
 
-def document(mime_type):
+def photo():
+    return types.MessageMediaPhoto(
+        photo=types.Photo(
+            id=1,
+            access_hash=1,
+            file_reference=b"",
+            date=T0,
+            sizes=[],
+            dc_id=1,
+        )
+    )
+
+
+def document(mime_type, attributes=(), size=1):
     return types.MessageMediaDocument(
         document=types.Document(
             id=1,
@@ -47,9 +65,9 @@ def document(mime_type):
             file_reference=b"",
             date=T0,
             mime_type=mime_type,
-            size=1,
+            size=size,
             dc_id=1,
-            attributes=[],
+            attributes=list(attributes),
         )
     )
 
@@ -59,8 +77,11 @@ class FakeTelethon:
         self.messages = {message.id: message for message in messages}
         self.connect_failure = None
         self.request_failure = None
+        self.download_failure = None
+        self.download_result = b"synthetic image"
         self.unanswered = False
         self.requests = []
+        self.downloads = []
         self.connections = 0
         self.closed = False
         self.event_handlers = []
@@ -133,6 +154,12 @@ class FakeTelethon:
             return [self.messages[message_id] for message_id in newer[:limit]]
         newest_first = sorted(self.messages, reverse=True)
         return [self.messages[message_id] for message_id in newest_first[:limit]]
+
+    async def download_media(self, message, file=None):
+        self.downloads.append((message.id, file))
+        if self.download_failure is not None:
+            raise self.download_failure
+        return self.download_result
 
 
 @pytest.fixture
@@ -224,6 +251,117 @@ def test_media_is_reduced_to_its_kind(telethon, client, media, media_kind):
     assert post.media_kind == media_kind
 
 
+def test_photo_is_downloaded_as_a_jpeg(telethon, client):
+    telethon.messages = {101: message(101, media=photo())}
+    assert client.fetch_image(WATCHED_CHANNEL, 101) == Image(
+        data=b"synthetic image", extension=".jpg"
+    )
+    assert telethon.requests[0]["ids"] == [101]
+    assert telethon.requests[0]["entity"] == types.InputPeerChannel(
+        channel_id=1, access_hash=1111
+    )
+    assert telethon.downloads == [(101, bytes)]
+
+
+@pytest.mark.parametrize(
+    ("mime_type", "extension"),
+    [("image/png", ".png"), ("image/jpeg", ".jpg"), ("image/webp", ".webp")],
+)
+def test_image_sent_as_a_file_keeps_its_own_extension(
+    telethon, client, mime_type, extension
+):
+    telethon.messages = {101: message(101, media=document(mime_type))}
+    assert client.fetch_image(WATCHED_CHANNEL, 101) == Image(
+        data=b"synthetic image", extension=extension
+    )
+
+
+@pytest.mark.parametrize(
+    "media",
+    [
+        pytest.param(None, id="text"),
+        pytest.param(types.MessageMediaPhoto(photo=None), id="expired-photo"),
+        pytest.param(
+            types.MessageMediaPhoto(photo=types.PhotoEmpty(id=1)), id="empty-photo"
+        ),
+        pytest.param(document("video/mp4"), id="video"),
+        pytest.param(document("application/pdf"), id="pdf"),
+        pytest.param(
+            document(
+                "image/webp",
+                [
+                    types.DocumentAttributeSticker(
+                        alt="", stickerset=types.InputStickerSetEmpty()
+                    )
+                ],
+            ),
+            id="sticker",
+        ),
+        pytest.param(
+            types.MessageMediaWebPage(webpage=types.WebPageEmpty(id=1)), id="web-page"
+        ),
+    ],
+)
+def test_other_media_is_not_downloaded(telethon, client, media):
+    telethon.messages = {101: message(101, media=media)}
+    assert client.fetch_image(WATCHED_CHANNEL, 101) is None
+    assert telethon.downloads == []
+
+
+def test_image_file_up_to_the_size_limit_is_downloaded(telethon, client):
+    telethon.messages = {
+        101: message(101, media=document("image/png", size=MAX_IMAGE_FILE_SIZE))
+    }
+    assert client.fetch_image(WATCHED_CHANNEL, 101) is not None
+
+
+def test_image_file_over_the_size_limit_is_skipped_with_a_warning(
+    telethon, client, caplog
+):
+    telethon.messages = {
+        101: message(101, media=document("image/png", size=MAX_IMAGE_FILE_SIZE + 1))
+    }
+    assert client.fetch_image(WATCHED_CHANNEL, 101) is None
+    assert telethon.downloads == []
+    assert "Synthetic channel" in caplog.text
+    assert "101" in caplog.text
+
+
+def test_missing_and_service_messages_have_no_image(telethon, client):
+    telethon.messages = {102: service_message(102)}
+    assert client.fetch_image(WATCHED_CHANNEL, 101) is None
+    assert client.fetch_image(WATCHED_CHANNEL, 102) is None
+    assert telethon.downloads == []
+
+
+def test_image_telegram_cannot_deliver_is_none(telethon, client):
+    telethon.messages = {101: message(101, media=photo())}
+    telethon.download_result = None
+    assert client.fetch_image(WATCHED_CHANNEL, 101) is None
+
+
+def test_errors_while_finding_the_message_are_translated(telethon, client):
+    telethon.request_failure = ConnectionError()
+    with pytest.raises(NetworkUnavailable):
+        client.fetch_image(WATCHED_CHANNEL, 101)
+
+
+@pytest.mark.parametrize(
+    ("error", "translated"),
+    [
+        (ConnectionError(), NetworkUnavailable),
+        (TimeoutError(), NetworkUnavailable),
+        (errors.FloodWaitError(request=None, capture=60), RateLimited),
+        (errors.FloodPremiumWaitError(request=None, capture=60), RateLimited),
+    ],
+)
+def test_errors_while_downloading_are_translated(telethon, client, error, translated):
+    telethon.messages = {101: message(101, media=photo())}
+    telethon.download_failure = error
+    with pytest.raises(translated):
+        client.fetch_image(WATCHED_CHANNEL, 101)
+
+
 def test_recheck_returns_only_messages_that_still_exist(telethon, client):
     telethon.messages = {101: message(101)}
     posts = client.fetch_by_ids(WATCHED_CHANNEL, [101, 105])
@@ -260,8 +398,11 @@ def test_post_says_whether_the_account_sent_it(telethon, client, out):
     assert post.outgoing is out
 
 
-def test_rate_limit_keeps_the_wait_telegram_asked_for(telethon, client):
-    telethon.request_failure = errors.FloodWaitError(request=None, capture=3600)
+@pytest.mark.parametrize(
+    "error_type", [errors.FloodWaitError, errors.FloodPremiumWaitError]
+)
+def test_rate_limit_keeps_the_wait_telegram_asked_for(telethon, client, error_type):
+    telethon.request_failure = error_type(request=None, capture=3600)
     with pytest.raises(RateLimited) as raised:
         client.latest_message_id(WATCHED_CHANNEL)
     assert raised.value.wait == timedelta(hours=1)

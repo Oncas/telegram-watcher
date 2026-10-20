@@ -166,6 +166,18 @@ def test_listen_without_a_session_halts_and_stops(configured, notify_send):
     assert notify_send.messages == [SESSION_ENDED_NOTICE]
 
 
+@pytest.mark.parametrize("command", ["run", "listen"])
+def test_unfinished_downloads_are_cleared_from_the_media_directory(
+    configured, notify_send, command
+):
+    media = configured / "media"
+    media.mkdir()
+    leftover = media / ".-1000000000001_103.jpg.part"
+    leftover.write_bytes(b"partial")
+    main([command])
+    assert not leftover.exists()
+
+
 def test_listen_fails_when_the_connection_ends_so_it_can_be_restarted(
     configured, monkeypatch
 ):

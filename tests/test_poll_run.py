@@ -51,7 +51,7 @@ def clock():
 
 
 @pytest.fixture
-def run_once(db_path, telegram, clock):
+def run_once(db_path, telegram, clock, image_store):
     def run_once():
         with closing(open_database(db_path)) as connection:
             return make_poll_run(
@@ -59,6 +59,7 @@ def run_once(db_path, telegram, clock):
                 chats=CHATS,
                 telegram=telegram,
                 clock=clock,
+                image_store=image_store,
             ).run()
 
     return run_once

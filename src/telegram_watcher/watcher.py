@@ -9,6 +9,7 @@ from telegram_watcher.chat_poller import ChatPoller
 from telegram_watcher.client import ChatClient, LiveTelegram
 from telegram_watcher.config import WatchedChat
 from telegram_watcher.forwarder import Forwarder
+from telegram_watcher.image_store import ImageStore
 from telegram_watcher.listeners import Listener, Listeners
 from telegram_watcher.match_delivery import MatchDelivery
 from telegram_watcher.notifier import Notifier
@@ -36,6 +37,7 @@ def watch_live(
     listeners: Sequence[Listener],
     notifier: Notifier,
     forwarder: Forwarder | None,
+    image_store: ImageStore,
     clock: Callable[[], datetime],
 ) -> RunOutcome:
     while True:
@@ -46,6 +48,7 @@ def watch_live(
             listeners=listeners,
             notifier=notifier,
             forwarder=forwarder,
+            image_store=image_store,
             clock=clock,
         )
         logger.info("run finished: %s", report.outcome)
@@ -62,8 +65,10 @@ def run_watcher(
     listeners: Sequence[Listener],
     notifier: Notifier,
     forwarder: Forwarder | None,
+    image_store: ImageStore,
     clock: Callable[[], datetime],
 ) -> RunReport:
+    image_store.clear_unfinished()
     post_repository = PostRepository(connection)
     checkpoint_repository = CheckpointRepository(connection)
     match_repository = MatchRepository(connection)
@@ -83,6 +88,7 @@ def run_watcher(
                 listeners=Listeners(listeners),
                 match_repository=match_repository,
             ),
+            image_store=image_store,
             post_repository=post_repository,
             checkpoint_repository=checkpoint_repository,
             clock=clock,
