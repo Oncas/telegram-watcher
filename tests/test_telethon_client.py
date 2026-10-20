@@ -1,9 +1,11 @@
 import asyncio
+import time
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
-from samples import T0, WATCHED_CHANNEL, WATCHED_CHAT
-from telethon import errors, types
+from samples import T0, UNRELATED_CHAT, WATCHED_CHANNEL, WATCHED_CHAT
+from telethon import errors, events, types
 
 from telegram_watcher.client import (
     AuthorizationFailed,
@@ -15,11 +17,13 @@ from telegram_watcher.client import (
 )
 from telegram_watcher.config import WatchedChat
 from telegram_watcher.posts import MediaKind, Post
-from telegram_watcher.telethon_client import connect_telethon
+from telegram_watcher.telethon_client import connect_telethon, listen_telethon
 
 WATCHED_PEER = types.PeerChannel(channel_id=1)
 BASIC_GROUP = WatchedChat(name="Synthetic group", chat_id=-4001, access_hash=None)
 PRIVATE_CHAT = WatchedChat(name="Synthetic person", chat_id=7, access_hash=7777)
+SHORT_WAIT = timedelta(milliseconds=50)
+LONG_WAIT = timedelta(seconds=10)
 
 
 def message(message_id, peer=WATCHED_PEER, text="", **fields):
@@ -55,23 +59,54 @@ class FakeTelethon:
         self.messages = {message.id: message for message in messages}
         self.connect_failure = None
         self.request_failure = None
+        self.unanswered = False
         self.requests = []
-        self.disconnected = False
+        self.connections = 0
+        self.closed = False
+        self.event_handlers = []
+        self._connection = None
 
     async def connect(self):
         if self.connect_failure is not None:
             raise self.connect_failure
+        self.connections += 1
+        self.loop = asyncio.get_running_loop()
+        self._connection = self.loop.create_future()
 
     def disconnect(self):
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            self.disconnected = True
+            self.closed = True
             return None
         return self._disconnect_in_running_loop()
 
     async def _disconnect_in_running_loop(self):
-        self.disconnected = True
+        self.closed = True
+        if self._connection is not None and not self._connection.done():
+            self._connection.set_result(None)
+
+    @property
+    def disconnected(self):
+        return self._connection
+
+    def drop_connection(self):
+        self.loop.call_soon_threadsafe(
+            self._connection.set_exception, ConnectionError()
+        )
+
+    def add_event_handler(self, callback, event):
+        self.event_handlers.append((callback, type(event)))
+
+    def deliver(self, event_type, chat_id):
+        asyncio.run_coroutine_threadsafe(
+            self._dispatch(event_type, SimpleNamespace(chat_id=chat_id)), self.loop
+        ).result()
+
+    async def _dispatch(self, event_type, event):
+        for callback, handled_type in self.event_handlers:
+            if handled_type is event_type:
+                await callback(event)
 
     async def get_messages(
         self, entity, limit=None, *, min_id=0, reverse=False, ids=None
@@ -87,6 +122,8 @@ class FakeTelethon:
         )
         if self.request_failure is not None:
             raise self.request_failure
+        if self.unanswered:
+            await asyncio.get_running_loop().create_future()
         if ids is not None:
             return [self.messages.get(message_id) for message_id in ids]
         if reverse:
@@ -295,7 +332,7 @@ def test_failure_to_connect_is_a_network_failure(telethon):
 def test_client_disconnects_even_when_the_run_fails(telethon):
     with pytest.raises(RuntimeError), connect_telethon(lambda: telethon):
         raise RuntimeError
-    assert telethon.disconnected
+    assert telethon.closed
 
 
 def test_client_is_created_inside_the_event_loop(telethon):
@@ -305,3 +342,76 @@ def test_client_is_created_inside_the_event_loop(telethon):
 
     with connect_telethon(create_client) as client:
         assert client.latest_message_id(WATCHED_CHANNEL) is None
+
+
+@pytest.fixture
+def live(telethon):
+    with listen_telethon(lambda: telethon, [WATCHED_CHANNEL]) as live:
+        with live.connect():
+            pass
+        yield live
+
+
+def waited(live, timeout):
+    started = time.monotonic()
+    live.wait_for_update(timeout)
+    return time.monotonic() - started
+
+
+def test_live_connection_is_opened_once_and_kept_between_runs(telethon, live):
+    for _ in range(2):
+        with live.connect() as client:
+            assert client.latest_message_id(WATCHED_CHANNEL) is None
+    assert telethon.connections == 1
+    assert not telethon.closed
+
+
+def test_live_connection_is_closed_on_exit(telethon):
+    with listen_telethon(lambda: telethon, [WATCHED_CHANNEL]) as live, live.connect():
+        pass
+    assert telethon.closed
+
+
+def test_live_connection_is_not_opened_until_a_run_needs_it(telethon):
+    with listen_telethon(lambda: telethon, [WATCHED_CHANNEL]):
+        pass
+    assert telethon.connections == 0
+
+
+@pytest.mark.parametrize("event_type", [events.NewMessage, events.MessageEdited])
+def test_new_or_edited_post_in_a_watched_chat_ends_one_wait(telethon, live, event_type):
+    telethon.deliver(event_type, WATCHED_CHAT)
+    assert waited(live, LONG_WAIT) < LONG_WAIT.total_seconds() / 2
+    assert waited(live, SHORT_WAIT) >= SHORT_WAIT.total_seconds()
+
+
+def test_posts_in_other_chats_do_not_end_the_wait(telethon, live):
+    telethon.deliver(events.NewMessage, UNRELATED_CHAT)
+    assert waited(live, SHORT_WAIT) >= SHORT_WAIT.total_seconds()
+
+
+def test_lost_connection_ends_the_wait(telethon, live):
+    telethon.drop_connection()
+    assert waited(live, LONG_WAIT) < LONG_WAIT.total_seconds() / 2
+
+
+def test_unanswered_request_is_a_network_failure(telethon):
+    telethon.unanswered = True
+    with (
+        listen_telethon(
+            lambda: telethon, [WATCHED_CHANNEL], request_timeout=SHORT_WAIT
+        ) as live,
+        live.connect() as client,
+        pytest.raises(NetworkUnavailable),
+    ):
+        client.latest_message_id(WATCHED_CHANNEL)
+
+
+def test_failure_to_open_the_live_connection_is_a_network_failure(telethon):
+    telethon.connect_failure = ConnectionError()
+    with (
+        listen_telethon(lambda: telethon, [WATCHED_CHANNEL]) as live,
+        pytest.raises(NetworkUnavailable),
+        live.connect(),
+    ):
+        pass

@@ -1,17 +1,18 @@
+import logging
 import sqlite3
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from telegram_watcher.alerts import Alerts
 from telegram_watcher.chat_poller import ChatPoller
-from telegram_watcher.client import ChatClient
+from telegram_watcher.client import ChatClient, LiveTelegram
 from telegram_watcher.config import WatchedChat
 from telegram_watcher.forwarder import Forwarder
 from telegram_watcher.listeners import Listener, Listeners
 from telegram_watcher.match_delivery import MatchDelivery
 from telegram_watcher.notifier import Notifier
-from telegram_watcher.poll_run import PollRun, RunReport
+from telegram_watcher.poll_run import PollRun, RunOutcome, RunReport
 from telegram_watcher.recorder import PostRecorder
 from telegram_watcher.run_monitor import RunMonitor
 from telegram_watcher.storage.account_state_repository import AccountStateRepository
@@ -21,6 +22,36 @@ from telegram_watcher.storage.checkpoint_repository import CheckpointRepository
 from telegram_watcher.storage.match_repository import MatchRepository
 from telegram_watcher.storage.post_repository import PostRepository
 from telegram_watcher.storage.run_log_repository import RunLogRepository
+
+FALLBACK_POLL_INTERVAL = timedelta(minutes=15)
+
+logger = logging.getLogger(__name__)
+
+
+def watch_live(
+    connection: sqlite3.Connection,
+    *,
+    chats: Sequence[WatchedChat],
+    telegram: LiveTelegram,
+    listeners: Sequence[Listener],
+    notifier: Notifier,
+    forwarder: Forwarder | None,
+    clock: Callable[[], datetime],
+) -> RunOutcome:
+    while True:
+        report = run_watcher(
+            connection,
+            chats=chats,
+            connect=telegram.connect,
+            listeners=listeners,
+            notifier=notifier,
+            forwarder=forwarder,
+            clock=clock,
+        )
+        logger.info("run finished: %s", report.outcome)
+        if report.outcome is not RunOutcome.COMPLETED:
+            return report.outcome
+        telegram.wait_for_update(FALLBACK_POLL_INTERVAL)
 
 
 def run_watcher(

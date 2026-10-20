@@ -1,10 +1,15 @@
 import asyncio
 
 import pytest
+from samples import WATCHED_CHANNEL
 
 from telegram_watcher.client import AuthorizationFailed, HaltReason
 from telegram_watcher.credentials import Credentials
-from telegram_watcher.telegram_account import new_client, open_telegram
+from telegram_watcher.telegram_account import (
+    listen_to_telegram,
+    new_client,
+    open_telegram,
+)
 
 CREDENTIALS = Credentials(api_id=12345, api_hash="0123456789abcdef0123456789abcdef")
 
@@ -26,3 +31,21 @@ def test_client_asks_for_no_updates_and_describes_no_real_device():
         client._init_request.system_version,
         client._init_request.app_version,
     ) == ("Telegram watcher", "Linux", "0.1.0")
+
+
+def test_missing_session_halts_the_listener_before_connecting(tmp_path):
+    session_path = tmp_path / "telegram.session"
+    with (
+        listen_to_telegram(CREDENTIALS, session_path, [WATCHED_CHANNEL]) as telegram,
+        pytest.raises(AuthorizationFailed) as raised,
+        telegram.connect(),
+    ):
+        pass
+    assert raised.value.reason == HaltReason.SESSION_ENDED
+
+
+def test_listening_client_asks_for_updates():
+    async def create_client():
+        return new_client(CREDENTIALS, "", receive_updates=True)
+
+    assert not asyncio.run(create_client())._no_updates

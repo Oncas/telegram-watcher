@@ -10,6 +10,7 @@ from telegram_watcher.client import HaltReason
 from telegram_watcher.config import Config, save_config
 from telegram_watcher.credentials import Credentials, save_credentials
 from telegram_watcher.matches import Match
+from telegram_watcher.poll_run import RunOutcome
 from telegram_watcher.private_files import write_private_file
 from telegram_watcher.run_lock import run_lock
 from telegram_watcher.storage.account_state_repository import AccountStateRepository
@@ -156,6 +157,38 @@ def test_session_readable_by_others_fails_the_run(configured, notify_send):
     assert main(["run"]) == 1
     assert run_outcomes(configured) == ["failed"]
     assert notify_send.messages == ["Telegram watcher run failed: PrivateFileError."]
+
+
+def test_listen_without_a_session_halts_and_stops(configured, notify_send):
+    assert main(["listen"]) == 0
+    assert halt_reason(configured) == HaltReason.SESSION_ENDED
+    assert run_outcomes(configured) == ["halted"]
+    assert notify_send.messages == [SESSION_ENDED_NOTICE]
+
+
+def test_listen_fails_when_the_connection_ends_so_it_can_be_restarted(
+    configured, monkeypatch
+):
+    monkeypatch.setattr(
+        "telegram_watcher.cli.watch_live",
+        lambda connection, **_: RunOutcome.NETWORK_UNAVAILABLE,
+    )
+    assert main(["listen"]) == 1
+
+
+def test_interrupted_listener_stops_cleanly(configured, monkeypatch):
+    def interrupted(connection, **_):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("telegram_watcher.cli.watch_live", interrupted)
+    assert main(["listen"]) == 0
+
+
+def test_listen_is_refused_while_another_run_holds_the_lock(configured, notify_send):
+    with run_lock(configured / "run.lock"):
+        assert main(["listen"]) == 1
+    assert run_outcomes(configured) == []
+    assert notify_send.messages == []
 
 
 def test_pick_chats_never_overwrites_an_existing_config(configured, capsys):
