@@ -1,11 +1,12 @@
 import asyncio
 import logging
+import threading
 from collections.abc import Callable, Coroutine, Iterator, Sequence
 from contextlib import contextmanager
 from datetime import timedelta
 from typing import Any
 
-from telethon import TelegramClient, errors, types, utils
+from telethon import TelegramClient, errors, events, types, utils
 
 from telegram_watcher.client import (
     AuthorizationFailed,
@@ -40,6 +41,8 @@ CHAT_UNAVAILABLE_ERRORS = (
 NETWORK_ERRORS = (OSError, errors.ServerError, errors.TimedOutError)
 
 MEDIA_KINDS_BY_MIME_TYPE = {"video": MediaKind.VIDEO, "audio": MediaKind.AUDIO}
+
+REQUEST_TIMEOUT = timedelta(minutes=1)
 
 
 class TelethonChatClient:
@@ -92,6 +95,79 @@ def connect_telethon(
             yield TelethonChatClient(client, runner.run)
         finally:
             runner.run(_disconnect_in_loop(client))
+
+
+class LiveTelethon:
+    def __init__(
+        self,
+        create_client: Callable[[], TelegramClient],
+        chats: Sequence[WatchedChat],
+        request_timeout: timedelta,
+    ):
+        self._create_client = create_client
+        self._chat_ids = frozenset(chat.chat_id for chat in chats)
+        self._request_timeout = request_timeout
+        self._client: TelegramClient | None = None
+        self._update = threading.Event()
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(target=self._loop.run_forever, daemon=True)
+        self._thread.start()
+
+    @contextmanager
+    def connect(self) -> Iterator[TelethonChatClient]:
+        if self._client is None:
+            self._client = self._run(_create_in_loop(self._create_client))
+            with translated_errors():
+                self._run(self._listen(self._client))
+        yield TelethonChatClient(self._client, self._run)
+
+    def wait_for_update(self, timeout: timedelta) -> None:
+        self._update.wait(timeout.total_seconds())
+        self._update.clear()
+
+    def close(self) -> None:
+        if self._client is not None:
+            self._run(_disconnect_in_loop(self._client))
+        self._loop.call_soon_threadsafe(self._loop.stop)
+        self._thread.join()
+        self._loop.close()
+
+    def _run(self, coroutine: Coroutine[Any, Any, Any]) -> Any:
+        future = asyncio.run_coroutine_threadsafe(coroutine, self._loop)
+        try:
+            return future.result(self._request_timeout.total_seconds())
+        finally:
+            future.cancel()
+
+    async def _listen(self, client: TelegramClient) -> None:
+        client.add_event_handler(self._on_message, events.NewMessage())
+        client.add_event_handler(self._on_message, events.MessageEdited())
+        await client.connect()
+        client.disconnected.add_done_callback(self._on_disconnect)
+
+    async def _on_message(self, event: events.NewMessage.Event) -> None:
+        if event.chat_id in self._chat_ids:
+            self._update.set()
+
+    def _on_disconnect(self, disconnected: asyncio.Future) -> None:
+        error = None if disconnected.cancelled() else disconnected.exception()
+        if error is not None:
+            logger.warning("telegram connection lost: %s", type(error).__name__)
+        self._update.set()
+
+
+@contextmanager
+def listen_telethon(
+    create_client: Callable[[], TelegramClient],
+    chats: Sequence[WatchedChat],
+    *,
+    request_timeout: timedelta = REQUEST_TIMEOUT,
+) -> Iterator[LiveTelethon]:
+    live = LiveTelethon(create_client, chats, request_timeout)
+    try:
+        yield live
+    finally:
+        live.close()
 
 
 @contextmanager

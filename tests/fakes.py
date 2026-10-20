@@ -1,8 +1,8 @@
 import json
 import threading
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from telegram_watcher.client import Page
@@ -82,6 +82,17 @@ class FakeTelegram:
             if post.chat_id == chat.chat_id
         )
         return history
+
+
+class FakeLiveTelegram:
+    def __init__(self, telegram: FakeTelegram, *updates: Callable[[], None]):
+        self.connect = telegram.connect
+        self._updates = list(updates)
+        self.waits: list[timedelta] = []
+
+    def wait_for_update(self, timeout: timedelta) -> None:
+        self.waits.append(timeout)
+        self._updates.pop(0)()
 
 
 class FakeNotifier:

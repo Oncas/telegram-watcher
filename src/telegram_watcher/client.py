@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
@@ -49,3 +50,9 @@ class ChatClient(Protocol):
     def fetch_by_ids(
         self, chat: WatchedChat, message_ids: Sequence[int]
     ) -> Sequence[Post]: ...
+
+
+class LiveTelegram(Protocol):
+    def connect(self) -> AbstractContextManager[ChatClient]: ...
+
+    def wait_for_update(self, timeout: timedelta) -> None: ...

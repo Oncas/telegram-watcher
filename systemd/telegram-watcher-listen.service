@@ -1,0 +1,16 @@
+[Unit]
+Description=Telegram watcher, listening for new posts
+
+[Service]
+WorkingDirectory=%h/Projects/telegram-group-watcher
+Environment=HOST_UID=%U HOST_GID=%G
+ExecStart=/usr/bin/docker compose run --rm watcher telegram-watcher listen
+KillSignal=SIGINT
+SuccessExitStatus=130
+Restart=on-failure
+RestartSec=10s
+RestartSteps=10
+RestartMaxDelaySec=10min
+
+[Install]
+WantedBy=default.target
