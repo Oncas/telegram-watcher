@@ -3,7 +3,7 @@ export HOST_GID := $(shell id -g)
 
 RUN := docker compose run --rm watcher
 
-.PHONY: check build test lint format init login pick-chats run clear-halt
+.PHONY: check build test lint format init login pick-chats run listen clear-halt
 
 check: lint test
 
@@ -19,5 +19,5 @@ lint:
 format:
 	$(RUN) sh -c "ruff check --fix && ruff format"
 
-init login pick-chats run clear-halt:
+init login pick-chats run listen clear-halt:
 	$(RUN) telegram-watcher $@

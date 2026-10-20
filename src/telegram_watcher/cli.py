@@ -44,8 +44,13 @@ from telegram_watcher.storage.database import (
     create_database,
     open_database,
 )
-from telegram_watcher.telegram_account import list_chats, open_telegram, sign_in
-from telegram_watcher.watcher import run_watcher
+from telegram_watcher.telegram_account import (
+    list_chats,
+    listen_to_telegram,
+    open_telegram,
+    sign_in,
+)
+from telegram_watcher.watcher import run_watcher, watch_live
 
 VAR_DIR = Path("var")
 DATABASE_PATH = VAR_DIR / "watcher.db"
@@ -55,6 +60,7 @@ SESSION_PATH = VAR_DIR / "telegram.session"
 LOCK_PATH = VAR_DIR / "run.lock"
 FORWARD_PATH = VAR_DIR / "forward.toml"
 LISTENERS_DIR = Path("listeners")
+SETUP_ERRORS = (OSError, sqlite3.Error, ConfigError, CredentialsError, StorageError)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +71,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "login": (log_in, "save the API credentials and log in to Telegram"),
         "pick-chats": (pick_chats, "choose the chats to watch, once"),
         "run": (run, "poll the watched chats once"),
+        "listen": (listen, "poll the watched chats whenever a new post arrives"),
         "clear-halt": (clear_halt, "resume runs after fixing what halted them"),
     }
     parser = argparse.ArgumentParser(prog="telegram-watcher")
@@ -159,13 +166,7 @@ def run() -> int:
     except AlreadyRunning:
         logger.info("run skipped: another run is still active")
         return 0
-    except (
-        OSError,
-        sqlite3.Error,
-        ConfigError,
-        CredentialsError,
-        StorageError,
-    ) as error:
+    except SETUP_ERRORS as error:
         logger.error("cannot run: %s", error)
         _notify_if_possible(
             notifier,
@@ -174,6 +175,43 @@ def run() -> int:
         return 1
     logger.info("run finished: %s", report.outcome)
     return 1 if report.outcome is RunOutcome.FAILED else 0
+
+
+def listen() -> int:
+    notifier = DesktopNotifier()
+    try:
+        with run_lock(LOCK_PATH):
+            config = load_config(CONFIG_PATH)
+            credentials = load_credentials(CREDENTIALS_PATH)
+            forward_target = load_forward_target(FORWARD_PATH)
+            with (
+                closing(open_database(DATABASE_PATH)) as connection,
+                listen_to_telegram(credentials, SESSION_PATH, config.chats) as telegram,
+            ):
+                outcome = watch_live(
+                    connection,
+                    chats=config.chats,
+                    telegram=telegram,
+                    listeners=load_listeners(LISTENERS_DIR),
+                    notifier=notifier,
+                    forwarder=HttpForwarder(forward_target) if forward_target else None,
+                    clock=partial(datetime.now, UTC),
+                )
+    except KeyboardInterrupt:
+        logger.info("listener stopped")
+        return 0
+    except AlreadyRunning:
+        logger.error("cannot listen: another run or listener is active")
+        return 1
+    except SETUP_ERRORS as error:
+        logger.error("cannot listen: %s", error)
+        _notify_if_possible(
+            notifier,
+            f"Telegram watcher cannot listen: {type(error).__name__}. See the log.",
+        )
+        return 1
+    logger.info("listener stopped: %s", outcome)
+    return 0 if outcome is RunOutcome.HALTED else 1
 
 
 def clear_halt() -> int:
