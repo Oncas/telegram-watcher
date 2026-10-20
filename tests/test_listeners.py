@@ -73,7 +73,7 @@ def forwarder():
 
 
 @pytest.fixture
-def run_with(db_path, telegram, notifier, forwarder):
+def run_with(db_path, telegram, notifier, forwarder, image_store):
     clock = FakeClock(T0 + timedelta(hours=1))
 
     def run_with(*listeners, forward_with=forwarder):
@@ -83,6 +83,7 @@ def run_with(db_path, telegram, notifier, forwarder):
             telegram=telegram,
             notifier=notifier,
             clock=clock,
+            image_store=image_store,
             listeners=listeners,
             forwarder=forward_with,
         )

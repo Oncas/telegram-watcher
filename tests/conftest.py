@@ -1,6 +1,7 @@
 import pytest
 from fakes import FakeEndpoint, FakeNotifySend
 
+from telegram_watcher.image_store import ImageStore
 from telegram_watcher.storage.database import create_database, open_database
 
 
@@ -16,6 +17,11 @@ def connection(db_path):
     connection = open_database(db_path)
     yield connection
     connection.close()
+
+
+@pytest.fixture
+def image_store(tmp_path):
+    return ImageStore(tmp_path / "media")
 
 
 @pytest.fixture

@@ -42,6 +42,12 @@ class Page:
     reached_end: bool
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Image:
+    data: bytes
+    extension: str
+
+
 class ChatClient(Protocol):
     def latest_message_id(self, chat: WatchedChat) -> int | None: ...
 
@@ -50,6 +56,8 @@ class ChatClient(Protocol):
     def fetch_by_ids(
         self, chat: WatchedChat, message_ids: Sequence[int]
     ) -> Sequence[Post]: ...
+
+    def fetch_image(self, chat: WatchedChat, message_id: int) -> Image | None: ...
 
 
 class LiveTelegram(Protocol):

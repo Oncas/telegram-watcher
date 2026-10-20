@@ -11,6 +11,12 @@ SECOND_CHAT = -1000000000003
 WATCHED_CHANNEL = WatchedChat(
     name="Synthetic channel", chat_id=WATCHED_CHAT, access_hash=1111
 )
+PHOTO_CHANNEL = WatchedChat(
+    name="Synthetic channel",
+    chat_id=WATCHED_CHAT,
+    access_hash=1111,
+    download_photos=True,
+)
 SECOND_CHANNEL = WatchedChat(
     name="Second synthetic channel", chat_id=SECOND_CHAT, access_hash=2222
 )
@@ -51,11 +57,27 @@ ALBUM_POSTS = tuple(
     for message_id, text in [(104, "Synthetic album caption"), (105, None), (106, None)]
 )
 
+IMAGE_FILE_POST = Post(
+    chat_id=WATCHED_CHAT,
+    message_id=107,
+    posted_at=T0 + timedelta(minutes=20),
+    media_kind=MediaKind.DOCUMENT,
+)
+
+VIDEO_POST = Post(
+    chat_id=WATCHED_CHAT,
+    message_id=108,
+    posted_at=T0 + timedelta(minutes=25),
+    media_kind=MediaKind.VIDEO,
+)
+
 EDITED_TEXT_POST = replace(
     TEXT_POST,
     edited_at=T0 + timedelta(minutes=30),
     text="Synthetic text post, edited",
 )
+
+OUTGOING_PHOTO_POST = replace(PHOTO_POST, message_id=109, outgoing=True)
 
 UNRELATED_POST = replace(
     TEXT_POST,

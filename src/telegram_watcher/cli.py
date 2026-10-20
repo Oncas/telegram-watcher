@@ -29,6 +29,7 @@ from telegram_watcher.credentials import (
 from telegram_watcher.desktop_notifier import DesktopNotifier
 from telegram_watcher.forward_target import load_forward_target
 from telegram_watcher.http_forwarder import HttpForwarder
+from telegram_watcher.image_store import ImageStore
 from telegram_watcher.listeners import load_listeners
 from telegram_watcher.notifier import NotificationFailed, Notifier
 from telegram_watcher.poll_run import RunOutcome
@@ -59,6 +60,7 @@ CREDENTIALS_PATH = VAR_DIR / "credentials.toml"
 SESSION_PATH = VAR_DIR / "telegram.session"
 LOCK_PATH = VAR_DIR / "run.lock"
 FORWARD_PATH = VAR_DIR / "forward.toml"
+MEDIA_DIR = VAR_DIR / "media"
 LISTENERS_DIR = Path("listeners")
 SETUP_ERRORS = (OSError, sqlite3.Error, ConfigError, CredentialsError, StorageError)
 
@@ -161,6 +163,7 @@ def run() -> int:
                     listeners=load_listeners(LISTENERS_DIR),
                     notifier=notifier,
                     forwarder=HttpForwarder(forward_target) if forward_target else None,
+                    image_store=ImageStore(MEDIA_DIR),
                     clock=partial(datetime.now, UTC),
                 )
     except AlreadyRunning:
@@ -195,6 +198,7 @@ def listen() -> int:
                     listeners=load_listeners(LISTENERS_DIR),
                     notifier=notifier,
                     forwarder=HttpForwarder(forward_target) if forward_target else None,
+                    image_store=ImageStore(MEDIA_DIR),
                     clock=partial(datetime.now, UTC),
                 )
     except KeyboardInterrupt:

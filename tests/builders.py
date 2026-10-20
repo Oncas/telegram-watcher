@@ -22,9 +22,10 @@ def make_recorder(connection):
     )
 
 
-def make_chat_poller(connection, clock, **limits):
+def make_chat_poller(connection, clock, image_store, **limits):
     return ChatPoller(
         recorder=make_recorder(connection),
+        image_store=image_store,
         post_repository=PostRepository(connection),
         checkpoint_repository=CheckpointRepository(connection),
         clock=clock,
@@ -32,11 +33,11 @@ def make_chat_poller(connection, clock, **limits):
     )
 
 
-def make_poll_run(connection, *, chats, telegram, clock):
+def make_poll_run(connection, *, chats, telegram, clock, image_store):
     return PollRun(
         chats=chats,
         connect=telegram.connect,
-        chat_poller=make_chat_poller(connection, clock),
+        chat_poller=make_chat_poller(connection, clock, image_store),
         transaction=connection,
         account_state_repository=AccountStateRepository(connection),
         clock=clock,
@@ -44,7 +45,15 @@ def make_poll_run(connection, *, chats, telegram, clock):
 
 
 def run_hourly(
-    db_path, *, chats, telegram, notifier, clock, listeners=(), forwarder=None
+    db_path,
+    *,
+    chats,
+    telegram,
+    notifier,
+    clock,
+    image_store,
+    listeners=(),
+    forwarder=None,
 ):
     with closing(open_database(db_path)) as connection:
         return run_watcher(
@@ -54,5 +63,6 @@ def run_hourly(
             listeners=listeners,
             notifier=notifier,
             forwarder=forwarder,
+            image_store=image_store,
             clock=clock,
         )

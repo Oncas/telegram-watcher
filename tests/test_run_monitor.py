@@ -47,10 +47,15 @@ def clock():
 
 
 @pytest.fixture
-def run_once(db_path, telegram, notifier, clock):
+def run_once(db_path, telegram, notifier, clock, image_store):
     def run_once():
         run_hourly(
-            db_path, chats=CHATS, telegram=telegram, notifier=notifier, clock=clock
+            db_path,
+            chats=CHATS,
+            telegram=telegram,
+            notifier=notifier,
+            clock=clock,
+            image_store=image_store,
         )
 
     return run_once
