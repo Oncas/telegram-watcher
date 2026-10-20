@@ -12,6 +12,7 @@ from telegram_watcher.client import (
     AuthorizationFailed,
     ChatUnavailable,
     HaltReason,
+    Image,
     NetworkUnavailable,
     Page,
     RateLimited,
@@ -43,6 +44,7 @@ NETWORK_ERRORS = (OSError, errors.ServerError, errors.TimedOutError)
 MEDIA_KINDS_BY_MIME_TYPE = {"video": MediaKind.VIDEO, "audio": MediaKind.AUDIO}
 
 REQUEST_TIMEOUT = timedelta(minutes=1)
+MAX_IMAGE_FILE_SIZE = 20 * 1024 * 1024
 
 
 class TelethonChatClient:
@@ -77,6 +79,22 @@ class TelethonChatClient:
             self._client.get_messages(input_peer(chat), ids=list(message_ids))
         )
         return _posts(messages)
+
+    def fetch_image(self, chat: WatchedChat, message_id: int) -> Image | None:
+        (message,) = self._request(
+            self._client.get_messages(input_peer(chat), ids=[message_id])
+        )
+        if not isinstance(message, types.Message) or not _is_image(message.media):
+            return None
+        if _file_size(message.media) > MAX_IMAGE_FILE_SIZE:
+            logger.warning(
+                "image too large to download: %s message %s", chat.name, message_id
+            )
+            return None
+        data = self._request(self._client.download_media(message, file=bytes))
+        if data is None:
+            return None
+        return Image(data=data, extension=utils.get_extension(message.media))
 
     def _request(self, request: Coroutine[Any, Any, Any]) -> Any:
         with translated_errors():
@@ -220,6 +238,29 @@ def media_kind(media: types.TypeMessageMedia | None) -> MediaKind | None:
             return MediaKind.OTHER
 
 
+def _is_image(media: types.TypeMessageMedia | None) -> bool:
+    match media:
+        case types.MessageMediaPhoto(photo=types.Photo()):
+            return True
+        case types.MessageMediaDocument(
+            document=types.Document(mime_type=mime_type, attributes=attributes)
+        ):
+            return mime_type.startswith("image/") and not any(
+                isinstance(attribute, types.DocumentAttributeSticker)
+                for attribute in attributes
+            )
+        case _:
+            return False
+
+
+def _file_size(media: types.TypeMessageMedia) -> int:
+    match media:
+        case types.MessageMediaDocument(document=types.Document(size=size)):
+            return size
+        case _:
+            return 0
+
+
 def _posts(messages: Sequence[Any]) -> list[Post]:
     return [
         to_post(message) for message in messages if isinstance(message, types.Message)
@@ -227,7 +268,7 @@ def _posts(messages: Sequence[Any]) -> list[Post]:
 
 
 def _translate(error: Exception) -> Exception | None:
-    if isinstance(error, errors.FloodWaitError):
+    if isinstance(error, errors.FloodWaitError | errors.FloodPremiumWaitError):
         return RateLimited(timedelta(seconds=error.seconds))
     if isinstance(error, SESSION_ENDED_ERRORS):
         return AuthorizationFailed(HaltReason.SESSION_ENDED)

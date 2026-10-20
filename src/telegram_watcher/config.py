@@ -13,7 +13,7 @@ from telegram_watcher.chat_ids import (
 from telegram_watcher.private_files import write_private_file
 
 CONFIG_KEYS = {"chats"}
-CHAT_KEYS = {"name", "chat_id", "access_hash"}
+CHAT_KEYS = {"name", "chat_id", "access_hash", "download_photos"}
 
 
 class ConfigError(Exception):
@@ -25,6 +25,7 @@ class WatchedChat:
     name: str
     chat_id: int
     access_hash: int | None
+    download_photos: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +62,8 @@ def _chat_table(chat: WatchedChat) -> Iterator[str]:
     yield f"chat_id = {chat.chat_id}"
     if chat.access_hash is not None:
         yield f"access_hash = {chat.access_hash}"
+    if chat.download_photos:
+        yield "download_photos = true"
 
 
 def _toml_string(text: str) -> str:
@@ -82,6 +85,7 @@ def _parse_chat(entry: dict, label: str) -> WatchedChat:
     name = _required(entry, "name", str, label)
     chat_id = _required(entry, "chat_id", int, label)
     access_hash = _optional(entry, "access_hash", int, label)
+    download_photos = _optional(entry, "download_photos", bool, label) or False
     if not is_marked_chat_id(chat_id):
         raise ConfigError(f"{label}: chat_id must be a marked chat ID")
     if is_channel_id(chat_id) and access_hash is None:
@@ -93,7 +97,12 @@ def _parse_chat(entry: dict, label: str) -> WatchedChat:
             f"{label}: a basic group has no access_hash;"
             " is the -100 prefix missing from chat_id?"
         )
-    return WatchedChat(name=name, chat_id=chat_id, access_hash=access_hash)
+    return WatchedChat(
+        name=name,
+        chat_id=chat_id,
+        access_hash=access_hash,
+        download_photos=download_photos,
+    )
 
 
 def _required(entry: dict, key: str, value_type: type, label: str):

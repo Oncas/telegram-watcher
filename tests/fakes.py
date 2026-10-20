@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from telegram_watcher.client import Page
+from telegram_watcher.client import Image, Page
 from telegram_watcher.config import WatchedChat
 from telegram_watcher.forwarder import ForwardFailed
 from telegram_watcher.notifier import NotificationFailed
@@ -24,6 +24,9 @@ class FakeTelegram:
         self.requested_chat_ids: list[int] = []
         self.rechecked_message_ids: list[list[int]] = []
         self.fetched_after_ids: list[int] = []
+        self.image_failures: dict[int, Exception] = {}
+        self.imageless_message_ids: set[int] = set()
+        self.requested_image_ids: list[int] = []
 
     def publish(self, *posts: Post) -> None:
         for post in posts:
@@ -66,6 +69,14 @@ class FakeTelegram:
         if chat.chat_id in self.recheck_failures:
             raise self.recheck_failures[chat.chat_id]
         return [history[found] for found in message_ids if history.get(found)]
+
+    def fetch_image(self, chat: WatchedChat, message_id: int) -> Image | None:
+        self.requested_image_ids.append(message_id)
+        if message_id in self.image_failures:
+            raise self.image_failures[message_id]
+        if message_id in self.imageless_message_ids:
+            return None
+        return Image(data=f"image {message_id}".encode(), extension=".jpg")
 
     def _read_history(self, chat: WatchedChat) -> dict[int, Post | None]:
         self.requested_chat_ids.append(chat.chat_id)

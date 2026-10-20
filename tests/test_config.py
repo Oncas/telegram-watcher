@@ -59,6 +59,25 @@ def test_loads_channels_basic_groups_and_private_chats(write_config):
     )
 
 
+def test_photo_downloads_are_off_unless_a_chat_asks_for_them(write_config):
+    config = load_config(
+        write_config(
+            """
+            [[chats]]
+            name = "Synthetic person"
+            chat_id = 1234567890
+            access_hash = 9876543210
+            download_photos = true
+
+            [[chats]]
+            name = "Synthetic basic group"
+            chat_id = -42
+            """
+        )
+    )
+    assert [chat.download_photos for chat in config.chats] == [True, False]
+
+
 def test_rejects_missing_file(tmp_path):
     with pytest.raises(ConfigError):
         load_config(tmp_path / "config.toml")
@@ -166,6 +185,24 @@ def test_rejects_missing_file(tmp_path):
             [[chats]]
             name = "Synthetic basic group"
             chat_id = -42
+            download_photos = "yes"
+            """,
+            id="quoted-download-photos",
+        ),
+        pytest.param(
+            """
+            [[chats]]
+            name = "Synthetic basic group"
+            chat_id = -42
+            download_photos = 1
+            """,
+            id="numeric-download-photos",
+        ),
+        pytest.param(
+            """
+            [[chats]]
+            name = "Synthetic basic group"
+            chat_id = -42
 
             [[chats]]
             name = "Same group again"
@@ -189,9 +226,16 @@ def test_saved_config_loads_back_unchanged(tmp_path):
                 access_hash=-1234567890,
             ),
             WatchedChat(name="Synthetic basic group", chat_id=-42, access_hash=None),
+            WatchedChat(
+                name="Synthetic person",
+                chat_id=1234567890,
+                access_hash=9876543210,
+                download_photos=True,
+            ),
         )
     )
     path = tmp_path / "config.toml"
     save_config(path, config)
     assert load_config(path) == config
+    assert path.read_text().count("download_photos = true") == 1
     assert stat.S_IMODE(path.stat().st_mode) == 0o600

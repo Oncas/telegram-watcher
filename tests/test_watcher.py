@@ -2,8 +2,17 @@ from contextlib import closing
 from datetime import timedelta
 
 import pytest
+from builders import run_hourly
 from fakes import FakeClock, FakeLiveTelegram, FakeNotifier, FakeTelegram
-from samples import CAPTION_POST, T0, TEXT_POST, WATCHED_CHANNEL, WATCHED_CHAT
+from samples import (
+    CAPTION_POST,
+    PHOTO_CHANNEL,
+    PHOTO_POST,
+    T0,
+    TEXT_POST,
+    WATCHED_CHANNEL,
+    WATCHED_CHAT,
+)
 
 from telegram_watcher.client import HaltReason, NetworkUnavailable
 from telegram_watcher.listeners import Listener
@@ -31,7 +40,7 @@ def notifier():
 
 
 @pytest.fixture
-def watch(db_path, notifier):
+def watch(db_path, notifier, image_store):
     def watch(live):
         with closing(open_database(db_path)) as connection:
             return watch_live(
@@ -41,6 +50,7 @@ def watch(db_path, notifier):
                 listeners=(WHOLE_TEXT,),
                 notifier=notifier,
                 forwarder=None,
+                image_store=image_store,
                 clock=FakeClock(T0),
             )
 
@@ -81,3 +91,41 @@ def test_halted_listener_stops_without_connecting(watch, connection, telegram):
     assert watch(live) is RunOutcome.HALTED
     assert telegram.connections == 0
     assert live.waits == []
+
+
+def test_each_run_clears_the_unfinished_files_of_an_interrupted_run(
+    db_path, tmp_path, telegram, notifier, image_store
+):
+    leftover = tmp_path / "media" / f".{WATCHED_CHAT}_103.jpg.part"
+    leftover.parent.mkdir()
+    leftover.write_bytes(b"partial")
+    run_hourly(
+        db_path,
+        chats=(WATCHED_CHANNEL,),
+        telegram=telegram,
+        notifier=notifier,
+        clock=FakeClock(T0),
+        image_store=image_store,
+    )
+    assert not leftover.exists()
+
+
+def test_run_saves_the_images_of_a_photo_chat(
+    db_path, tmp_path, telegram, notifier, image_store
+):
+    def run():
+        run_hourly(
+            db_path,
+            chats=(PHOTO_CHANNEL,),
+            telegram=telegram,
+            notifier=notifier,
+            clock=FakeClock(T0),
+            image_store=image_store,
+        )
+
+    run()
+    telegram.publish(PHOTO_POST)
+    run()
+    assert [path.name for path in (tmp_path / "media" / "downloaded").iterdir()] == [
+        f"{WATCHED_CHAT}_103.jpg"
+    ]
