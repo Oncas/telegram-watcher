@@ -1,20 +1,23 @@
-FROM python:3.14-slim
+FROM node:24-bookworm-slim
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends libnotify-bin \
+    && apt-get install --yes --no-install-recommends libnotify-bin util-linux \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /usr/local/bin/uv
+WORKDIR /opt/watcher
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund \
+    && ln -s /opt/watcher/node_modules /node_modules
 
-ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
-    UV_PYTHON_DOWNLOADS=never \
-    UV_LINK_MODE=copy \
-    UV_COMPILE_BYTECODE=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PATH=/opt/venv/bin:$PATH
+ENV PATH=/opt/watcher/node_modules/.bin:$PATH \
+    NPM_CONFIG_CACHE=/app/.npm-cache \
+    NPM_CONFIG_UPDATE_NOTIFIER=false
 
 WORKDIR /app
-COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-install-project
+COPY package.json ./
 COPY src ./src
-RUN uv sync --locked
+COPY listeners/example.ts ./listeners/example.ts
+RUN chmod +x /app/src/cli.ts \
+    && ln -s /app/src/cli.ts /usr/local/bin/telegram-watcher
+
+CMD ["telegram-watcher", "--help"]
