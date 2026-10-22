@@ -31,6 +31,12 @@ test("existing TOML supports channels, groups, users and exact 64-bit access has
       access_hash: -9223372036854775808n,
       download_photos: true,
     },
+    {
+      ...CHAT,
+      chat_id: -43,
+      access_hash: null,
+      download_photos: "matched" as const,
+    },
   ];
   saveConfig(path, chats);
   assert.deepEqual(loadConfig(path), chats);
@@ -39,6 +45,7 @@ test("existing TOML supports channels, groups, users and exact 64-bit access has
     readFileSync(path, "utf8"),
     /access_hash = -9223372036854775808/,
   );
+  assert.match(readFileSync(path, "utf8"), /download_photos = "matched"/);
 });
 
 const invalidConfigs = [

@@ -2,7 +2,7 @@ export interface WatchedChat {
   name: string;
   chat_id: number;
   access_hash: bigint | null;
-  download_photos: boolean;
+  download_photos: boolean | "matched";
 }
 
 export type MediaKind = "photo" | "video" | "audio" | "document" | "other";
