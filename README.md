@@ -54,6 +54,8 @@ later poll saves bounded pages and their checkpoints atomically, rechecks
 stored posts from the last three days for edits and deletions, and stores
 post metadata. Text is available to listeners but is not stored with posts.
 Photo downloads remain opt-in for each chat and exclude outgoing posts.
+Set `download_photos = "matched"` to download a photo only when a listener for
+that chat yields a match for its post; `true` downloads every photo.
 
 Long flood waits persist an account-wide retry deadline. Authorization errors
 persist a halt until the underlying problem is fixed and `make clear-halt`

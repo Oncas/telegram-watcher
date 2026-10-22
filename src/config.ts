@@ -83,9 +83,12 @@ export function loadConfig(path: string): WatchedChat[] {
     }
     if (
       entry.download_photos !== undefined &&
-      typeof entry.download_photos !== "boolean"
+      typeof entry.download_photos !== "boolean" &&
+      entry.download_photos !== "matched"
     ) {
-      throw new ConfigError(`${label}: download_photos must be a boolean`);
+      throw new ConfigError(
+        `${label}: download_photos must be a boolean or "matched"`,
+      );
     }
     if (seen.has(chatId))
       throw new ConfigError(`chat_id ${chatId} is listed more than once`);
@@ -94,7 +97,10 @@ export function loadConfig(path: string): WatchedChat[] {
       name: entry.name,
       chat_id: chatId,
       access_hash: accessHash,
-      download_photos: entry.download_photos === true,
+      download_photos:
+        entry.download_photos === "matched"
+          ? "matched"
+          : entry.download_photos === true,
     };
   });
 }
@@ -111,7 +117,11 @@ export function saveConfig(path: string, chats: WatchedChat[]): void {
           ...(chat.access_hash === null
             ? []
             : [`access_hash = ${chat.access_hash}`]),
-          ...(chat.download_photos ? ["download_photos = true"] : []),
+          ...(chat.download_photos === "matched"
+            ? ['download_photos = "matched"']
+            : chat.download_photos
+              ? ["download_photos = true"]
+              : []),
         ].join("\n"),
       )
       .join("\n\n") + "\n",

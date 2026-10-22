@@ -383,6 +383,30 @@ const wholeText = {
   chat_id: CHAT.chat_id,
   listen: (value: ReturnType<typeof post>) => [{ text: value.text }],
 };
+for (const [name, listeners, expected] of [
+  ["a listener yields for the post", [wholeText], true],
+  ["a listener yields nothing", [{ ...wholeText, listen: () => [] }], false],
+  [
+    "only a listener for another chat yields",
+    [{ ...wholeText, chat_id: SECOND.chat_id }],
+    false,
+  ],
+  ["no listener exists", [], false],
+] as const)
+  test(`matched image policy when ${name}`, async (t) => {
+    const s = setup(t);
+    s.options.chats = [{ ...CHAT, download_photos: "matched" }];
+    s.options.listeners = [...listeners];
+    await s.run();
+    s.telegram.posts = [post(101, { media_kind: "photo" })];
+    await s.run();
+    assert.equal(
+      s.telegram.requests.some((request) => request.method === "image"),
+      expected,
+    );
+    assert.equal(s.storage.all("SELECT * FROM posts").length, 1);
+    assert.equal(s.storage.checkpoint(CHAT.chat_id), 101);
+  });
 test("listeners receive their chat's new posts, changed edits and no prior history", async (t) => {
   const s = setup(t);
   s.options.listeners = [wholeText];

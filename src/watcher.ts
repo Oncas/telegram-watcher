@@ -128,7 +128,9 @@ export class ChatPoller {
           if (
             post.outgoing ||
             !["photo", "document"].includes(post.media_kind ?? "") ||
-            this.images.contains(chat.chat_id, post.message_id)
+            this.images.contains(chat.chat_id, post.message_id) ||
+            (chat.download_photos === "matched" &&
+              hear(this.recorder.listeners, post).length === 0)
           )
             continue;
           const image = await client.fetchImage(chat, post.message_id);
