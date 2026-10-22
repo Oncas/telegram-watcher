@@ -11,13 +11,13 @@ build:
 	docker compose build
 
 test:
-	$(RUN) pytest -q -W error
+	$(RUN) npm test
 
 lint:
-	$(RUN) sh -c "ruff check && ruff format --check"
+	$(RUN) npm run lint
 
 format:
-	$(RUN) sh -c "ruff check --fix && ruff format"
+	$(RUN) npm run format
 
 init login pick-chats run listen clear-halt:
 	$(RUN) telegram-watcher $@

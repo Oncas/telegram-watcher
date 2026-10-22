@@ -1,4 +1,9 @@
 .git
+node_modules
+.npm-cache
+.test-tmp
+listeners/*
+!listeners/example.ts
 .venv
 .pytest_cache
 .ruff_cache
