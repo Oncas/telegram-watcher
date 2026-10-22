@@ -1,11 +1,15 @@
 /var/
 /listeners/*
-!/listeners/example.py
+!/listeners/example.ts
 
 *.session
 *.session-journal
 .env
 
+node_modules/
+.npm-cache/
+.test-tmp/
+coverage/
 __pycache__/
 .venv/
 .pytest_cache/
