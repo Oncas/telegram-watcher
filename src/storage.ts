@@ -116,6 +116,15 @@ export class Storage {
     );
     return true;
   }
+  isNewVersion(post: Post): boolean {
+    return (
+      this.one(
+        "SELECT edited_at FROM post_versions WHERE chat_id = ? AND message_id = ? ORDER BY version DESC LIMIT 1",
+        post.chat_id,
+        post.message_id,
+      )?.edited_at !== timestamp(post.edited_at)
+    );
+  }
   recentIds(chatId: number, since: Date): number[] {
     return this.all(
       "SELECT message_id FROM posts WHERE chat_id = ? AND posted_at >= ? AND deleted_at IS NULL ORDER BY message_id",
