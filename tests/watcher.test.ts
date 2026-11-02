@@ -407,6 +407,57 @@ for (const [name, listeners, expected] of [
     assert.equal(s.storage.all("SELECT * FROM posts").length, 1);
     assert.equal(s.storage.checkpoint(CHAT.chat_id), 101);
   });
+test("matched images ask each listener once per post version", async (t) => {
+  const s = setup(t);
+  const seen = new Set<number>();
+  s.options.chats = [{ ...CHAT, download_photos: "matched" }];
+  s.options.listeners = [
+    {
+      ...wholeText,
+      listen: (value) => {
+        if (seen.has(value.message_id)) return [];
+        seen.add(value.message_id);
+        return [{ text: value.text }];
+      },
+    },
+  ];
+  await s.run();
+  s.telegram.posts = [post(101, { media_kind: "photo" })];
+  await s.run();
+  assert.equal(
+    s.telegram.requests.filter((request) => request.method === "image").length,
+    1,
+  );
+  assert.equal(s.forwarder.payloads.length, 1);
+});
+test("an edit that starts matching downloads its image", async (t) => {
+  const s = setup(t);
+  s.options.chats = [{ ...CHAT, download_photos: "matched" }];
+  s.options.listeners = [
+    {
+      ...wholeText,
+      listen: (value) =>
+        value.text === "Synthetic signal" ? [{ text: value.text }] : [],
+    },
+  ];
+  await s.run();
+  s.telegram.posts = [post(101, { media_kind: "photo" })];
+  await s.run();
+  s.telegram.posts = [
+    post(101, {
+      media_kind: "photo",
+      text: "Synthetic signal",
+      edited_at: new Date(T0.getTime() + 1000),
+    }),
+  ];
+  await s.run();
+  await s.run();
+  assert.equal(
+    s.telegram.requests.filter((request) => request.method === "image").length,
+    1,
+  );
+  assert.equal(s.forwarder.payloads.length, 1);
+});
 test("listeners receive their chat's new posts, changed edits and no prior history", async (t) => {
   const s = setup(t);
   s.options.listeners = [wholeText];
