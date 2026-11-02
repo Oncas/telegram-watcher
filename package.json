@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "description": "Watches selected Telegram chats and keeps a local record of their posts.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Oncas/telegram-watcher.git"
+  },
   "engines": {
     "node": ">=24.12.0"
   },

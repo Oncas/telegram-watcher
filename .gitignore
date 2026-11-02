@@ -5,6 +5,11 @@
 *.session
 *.session-journal
 .env
+.env.*
+*.db
+*.db-shm
+*.db-wal
+compose.override.yaml
 
 node_modules/
 .npm-cache/
