@@ -187,15 +187,19 @@ export function loadForwardTarget(path: string): ForwardTarget | null {
   }
   try {
     const url = new URL(data.url);
+    const loopback =
+      url.hostname === "localhost" ||
+      url.hostname === "[::1]" ||
+      /^127\.\d+\.\d+\.\d+$/.test(url.hostname);
     if (
-      !["http:", "https:"].includes(url.protocol) ||
+      !(url.protocol === "https:" || (url.protocol === "http:" && loopback)) ||
       !url.hostname ||
       url.port === "0"
     )
       throw new Error();
   } catch {
     throw new ConfigError(
-      `${path}: url must be an http:// or https:// address`,
+      `${path}: url must be an https:// address, or http:// on localhost`,
     );
   }
   if (!/^[A-Za-z0-9._~+/=-]+$/.test(data.token)) {
