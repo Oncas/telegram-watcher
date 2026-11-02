@@ -2,7 +2,7 @@
 Description=Telegram watcher, listening for new posts
 
 [Service]
-WorkingDirectory=%h/Projects/telegram-group-watcher
+WorkingDirectory=%h/telegram-watcher
 Environment=HOST_UID=%U HOST_GID=%G
 ExecStart=/usr/bin/docker compose run --rm watcher telegram-watcher listen
 KillSignal=SIGINT

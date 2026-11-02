@@ -92,15 +92,15 @@ test("a copy of the example is a working listener", async (t) => {
     '"../src/model.ts"',
     JSON.stringify(resolve("src/model.ts")),
   );
-  writeFileSync(join(root, "signals.ts"), source);
+  writeFileSync(join(root, "keywords.ts"), source);
   const [listener] = await loadListeners(root);
   assert.deepEqual(
-    [
-      ...listener.listen(
-        post(101, { text: "Synthetic signal: BUY ABC at 1.25" }),
-      ),
-    ],
-    [{ side: "BUY", symbol: "ABC", price: "1.25" }],
+    [...listener.listen(post(101, { text: "Synthetic Release, no outage" }))],
+    [{ keyword: "release" }, { keyword: "outage" }],
+  );
+  assert.deepEqual(
+    [...listener.listen(post(102, { text: "release", outgoing: true }))],
+    [],
   );
 });
 test("match identity keeps the original sorted ASCII JSON encoding", () => {
@@ -205,7 +205,7 @@ test("kernel run locks reject concurrent processes and recover after process dea
   release();
   assert.equal(statSync(lock).mode & 0o777, 0o600);
 });
-test("flock locks are compatible with the existing Python process lock", (t) => {
+test("the run lock is an flock lock other processes can see", (t) => {
   const path = join(directory(t), "run.lock");
   const release = acquireRunLock(path);
   try {
