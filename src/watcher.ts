@@ -1,7 +1,7 @@
 import { Alerts, deliverMatches } from "./delivery.ts";
 import { ImageStore } from "./image-store.ts";
 import { hear } from "./listeners.ts";
-import type { Listener } from "./listeners.ts";
+import type { Listener, Match } from "./listeners.ts";
 import type {
   ChatClient,
   Forwarder,
@@ -37,13 +37,22 @@ export interface RunReport {
 export class PostRecorder {
   readonly storage: Storage;
   readonly listeners: Listener[];
+  readonly matchesByPost = new WeakMap<Post, Match[]>();
   constructor(storage: Storage, listeners: Listener[]) {
     this.storage = storage;
     this.listeners = listeners;
   }
+  heard(post: Post): Match[] {
+    let matches = this.matchesByPost.get(post);
+    if (!matches) {
+      matches = hear(this.listeners, post);
+      this.matchesByPost.set(post, matches);
+    }
+    return matches;
+  }
   save(post: Post, fetchedAt: Date): void {
     if (this.storage.savePost(post, fetchedAt)) {
-      for (const match of hear(this.listeners, post))
+      for (const match of this.heard(post))
         this.storage.addMatch(match, fetchedAt);
     }
   }
@@ -118,25 +127,14 @@ export class ChatPoller {
     );
     if (recent.length) {
       const posts = await client.fetchByIds(chat, recent);
+      rejectOtherChats(chat.chat_id, posts);
+      await this.downloadPhotos(client, chat, posts);
       this.recorder.recordRecheck(chat.chat_id, recent, posts, this.clock());
     }
     for (let pageNumber = 0; pageNumber < this.maxPages; pageNumber++) {
       const page = await client.fetchAfter(chat, after, this.pageSize);
       rejectOtherChats(chat.chat_id, page.posts);
-      if (chat.download_photos) {
-        for (const post of page.posts) {
-          if (
-            post.outgoing ||
-            !["photo", "document"].includes(post.media_kind ?? "") ||
-            this.images.contains(chat.chat_id, post.message_id) ||
-            (chat.download_photos === "matched" &&
-              hear(this.recorder.listeners, post).length === 0)
-          )
-            continue;
-          const image = await client.fetchImage(chat, post.message_id);
-          if (image) this.images.add(chat.chat_id, post.message_id, image);
-        }
-      }
+      await this.downloadPhotos(client, chat, page.posts);
       if (page.last_message_id !== null) {
         this.recorder.recordNew(
           chat.chat_id,
@@ -147,6 +145,26 @@ export class ChatPoller {
         after = page.last_message_id;
       }
       if (page.reached_end) return;
+    }
+  }
+  async downloadPhotos(
+    client: ChatClient,
+    chat: WatchedChat,
+    posts: Post[],
+  ): Promise<void> {
+    if (!chat.download_photos) return;
+    for (const post of posts) {
+      if (
+        post.outgoing ||
+        !["photo", "document"].includes(post.media_kind ?? "") ||
+        this.images.contains(chat.chat_id, post.message_id) ||
+        !this.recorder.storage.isNewVersion(post) ||
+        (chat.download_photos === "matched" &&
+          this.recorder.heard(post).length === 0)
+      )
+        continue;
+      const image = await client.fetchImage(chat, post.message_id);
+      if (image) this.images.add(chat.chat_id, post.message_id, image);
     }
   }
 }
