@@ -30,19 +30,6 @@ export async function loadListeners(directory: string): Promise<Listener[]> {
     throw error;
   }
   const listeners: Listener[] = [];
-  for (const file of files) {
-    if (
-      file.endsWith(".py") &&
-      file !== "example.py" &&
-      !files.some(
-        (other) => other.replace(/\.(ts|js|mjs)$/, "") === file.slice(0, -3),
-      )
-    ) {
-      console.warn(
-        `Python listener needs a TypeScript port: ${file.slice(0, -3)}`,
-      );
-    }
-  }
   for (const file of files.sort()) {
     if (!/\.(ts|js|mjs)$/.test(file) || /^example\./.test(file)) continue;
     const name = basename(file).replace(/\.(ts|js|mjs)$/, "");
@@ -85,7 +72,7 @@ function validateJson(
   parents.delete(value);
 }
 
-// Match identities retain the Python implementation's sorted, ASCII JSON form.
+// Match IDs hash this exact form, so changing it changes the ID of every match.
 export function identityJson(value: Json): string {
   if (Array.isArray(value)) return `[${value.map(identityJson).join(", ")}]`;
   if (value !== null && typeof value === "object") {
