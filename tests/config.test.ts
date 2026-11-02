@@ -147,15 +147,20 @@ test("forwarding is optional and settings remain private", (t) => {
     'url="https://example.invalid/matches"\ntoken="synthetic"',
   );
   assert.equal(loadForwardTarget(path)?.token, "synthetic");
+  for (const host of ["localhost:8080", "127.0.0.1", "[::1]"]) {
+    writePrivateFile(path, `url="http://${host}/matches"\ntoken="synthetic"`);
+    assert.equal(loadForwardTarget(path)?.url, `http://${host}/matches`);
+  }
   chmodSync(path, 0o644);
   assert.throws(() => loadForwardTarget(path), ConfigError);
 });
 for (const text of [
   'url="file:///tmp/matches"\ntoken="synthetic"',
-  'url="http://example.invalid:0"\ntoken="synthetic"',
-  'url="http://example.invalid"\ntoken="line\\nbreak"',
-  'url="http://example.invalid"',
-  'url="http://example.invalid"\ntoken=123',
+  'url="http://example.invalid/matches"\ntoken="synthetic"',
+  'url="https://example.invalid:0"\ntoken="synthetic"',
+  'url="https://example.invalid"\ntoken="line\\nbreak"',
+  'url="https://example.invalid"',
+  'url="https://example.invalid"\ntoken=123',
   'invalid="private-value',
 ])
   test("invalid forward settings are refused without echoing values", (t) => {
