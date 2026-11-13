@@ -154,6 +154,22 @@ test("cyclic JSON is rejected and shared JSON objects are allowed", () => {
     1,
   );
 });
+for (const [name, listen] of [
+  ["async-generator", async function* () {}],
+  ["async-function", async () => [{ text: "synthetic" }]],
+  ["plain-object", () => ({ text: "synthetic" })],
+] as const)
+  test(`a listener that does not return an iterable is reported: ${name}`, (t) => {
+    const errors = t.mock.method(console, "error", () => {});
+    assert.deepEqual(
+      hear([{ name, chat_id: CHAT.chat_id, listen: listen as never }], post()),
+      [],
+    );
+    assert.deepEqual(
+      errors.mock.calls.map((call) => call.arguments),
+      [[`listener failed: ${name}, ZodError`]],
+    );
+  });
 test("image files and folders are private and names cannot escape their folder", (t) => {
   const root = join(directory(t), "media");
   const images = new ImageStore(root);
