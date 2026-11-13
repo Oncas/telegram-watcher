@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readdirSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { z } from "zod";
 import type { Json, JsonObject, Post } from "./model.ts";
 import { errorName } from "./model.ts";
 import { isMissing } from "./private-files.ts";
@@ -21,6 +22,21 @@ export interface Match {
   data: JsonObject;
 }
 
+const listenerModule = z.object({
+  CHAT_ID: z.int().refine((id) => id !== 0, "CHAT_ID must not be 0"),
+  listen: z.custom<Listener["listen"]>(
+    (value) => typeof value === "function",
+    "listen must be a function",
+  ),
+});
+const listenerOutput = z.custom<Iterable<unknown>>(
+  (value) =>
+    typeof (value as Partial<Iterable<unknown>> | null)?.[Symbol.iterator] ===
+    "function",
+  "listen must return an iterable, such as a generator",
+);
+const listenerData = z.record(z.string(), z.json());
+
 export async function loadListeners(directory: string): Promise<Listener[]> {
   let files: string[];
   try {
@@ -34,42 +50,15 @@ export async function loadListeners(directory: string): Promise<Listener[]> {
     if (!/\.(ts|js|mjs)$/.test(file) || /^example\./.test(file)) continue;
     const name = basename(file).replace(/\.(ts|js|mjs)$/, "");
     try {
-      const module = await import(
-        pathToFileURL(resolve(join(directory, file))).href
+      const module = listenerModule.parse(
+        await import(pathToFileURL(resolve(join(directory, file))).href),
       );
-      if (
-        !Number.isSafeInteger(module.CHAT_ID) ||
-        module.CHAT_ID === 0 ||
-        typeof module.listen !== "function"
-      )
-        throw new TypeError("requires CHAT_ID and listen");
       listeners.push({ name, chat_id: module.CHAT_ID, listen: module.listen });
     } catch (error) {
       console.error(`listener not loaded: ${name}, ${errorName(error)}`);
     }
   }
   return listeners;
-}
-
-function validateJson(
-  value: unknown,
-  parents = new Set<object>(),
-): asserts value is Json {
-  if (value === null || typeof value === "string" || typeof value === "boolean")
-    return;
-  if (typeof value === "number" && Number.isFinite(value)) return;
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    parents.has(value) ||
-    (!Array.isArray(value) &&
-      Object.getPrototypeOf(value) !== Object.prototype &&
-      Object.getPrototypeOf(value) !== null)
-  )
-    throw new TypeError("listeners must yield JSON objects");
-  parents.add(value);
-  for (const entry of Object.values(value)) validateJson(entry, parents);
-  parents.delete(value);
 }
 
 // Match IDs hash this exact form, so changing it changes the ID of every match.
@@ -92,12 +81,14 @@ export function hear(listeners: Listener[], post: Post): Match[] {
     .filter((listener) => listener.chat_id === post.chat_id)
     .flatMap((listener) => {
       try {
-        const found = Array.from(listener.listen(post), (data) => {
-          if (data === null || typeof data !== "object" || Array.isArray(data))
-            throw new TypeError("listeners must yield objects");
-          validateJson(data);
-          return JSON.parse(JSON.stringify(data)) as JsonObject;
-        });
+        const found = Array.from(
+          listenerOutput.parse(listener.listen(post)),
+          (data) => {
+            listenerData.parse(data);
+            // The copy also rejects cycles, which the schema lets through.
+            return JSON.parse(JSON.stringify(data)) as JsonObject;
+          },
+        );
         return found.map((data) => ({
           match_id: createHash("sha256")
             .update(
